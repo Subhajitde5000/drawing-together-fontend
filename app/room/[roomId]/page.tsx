@@ -834,13 +834,14 @@ export default function RoomPage() {
                 setIsFullscreen(true);
                 // Lock to landscape on mobile — silently ignores on desktop
                 try {
-                    screen.orientation?.lock?.("landscape").catch(() => { });
+                    // TS's ScreenOrientation type may lack lock/unlock in some lib versions
+                    (screen.orientation as any)?.lock?.("landscape")?.catch(() => { });
                 } catch { /* not supported */ }
             }).catch(() => { });
         } else {
             document.exitFullscreen().then(() => {
                 setIsFullscreen(false);
-                try { screen.orientation?.unlock?.(); } catch { /* ignore */ }
+                try { (screen.orientation as any)?.unlock?.(); } catch { /* ignore */ }
             }).catch(() => { });
         }
     }
