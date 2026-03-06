@@ -453,11 +453,12 @@ function useWebSocket(roomId: string, onMessage: (data: DrawEvent) => void) {
 
 // ── UI Sub-components ─────────────────────────────────────────────────────────
 
-function WsStatusDot({ status }: { status: "connecting" | "connected" | "disconnected" }) {
-    const map = {
+function WsStatusDot({ status }: { status: WsStatus }) {
+    const map: Record<WsStatus, { color: string; label: string }> = {
         connected: { color: "#22c55e", label: "Connected" },
         connecting: { color: "#f59e0b", label: "Connecting…" },
         disconnected: { color: "#ef4444", label: "Disconnected" },
+        full: { color: "#ef4444", label: "Room Full" },
     };
     const { color, label } = map[status];
     return (
