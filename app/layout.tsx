@@ -33,7 +33,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${inter.variable} ${nunito.variable} antialiased`}>
+      <body suppressHydrationWarning className={`${inter.variable} ${nunito.variable} antialiased`}>
         {children}
       </body>
     </html>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useCallback } from "react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -12,15 +12,32 @@ type ToolName =
     | "spray"
     | "mirror"
     | "glitter"
+    | "chalk"
+    | "fire"
+    | "bubble"
+    | "zigzag"
+    | "kaleidoscope"
+    | "lightning"
+    | "fur"
+    | "splatter"
+    | "ribbon"
+    | "confetti"
+    | "watercolor"
+    | "mosaic"
     | "fill"
+    | "eraser"
     | "star"
     | "heart"
     | "circle"
-    | "eraser";
+    | "diamond"
+    | "triangle"
+    | "arrow"
+    | "spiral";
 
 type DrawEvent = {
     type: "draw" | "end" | "clear" | "fill" | "stamp"
-        | "connected" | "player_joined" | "player_left" | "error";
+        | "connected" | "player_joined" | "player_left" | "error" | "cursor"
+        | "draw_history_sync";
     x?: number;
     y?: number;
     color?: string;
@@ -32,6 +49,7 @@ type DrawEvent = {
     player?: number;    // server: which player number you are
     players?: number;   // server: current player count in room
     message?: string;   // server: error message
+    history?: DrawEvent[]; // for draw_history_sync
 };
 
 type PlayerStatus = "waiting" | "connected";
@@ -77,11 +95,27 @@ const TOOLS: ToolDef[] = [
     { id: "spray", icon: "🎨", label: "Spray", desc: "Airbrush — random dot cloud", group: "brush" },
     { id: "mirror", icon: "🪞", label: "Mirror", desc: "Draws symmetrically on both sides", group: "brush" },
     { id: "glitter", icon: "✨", label: "Glitter", desc: "Sparkle burst around your cursor", group: "brush" },
+    { id: "chalk", icon: "🖍️", label: "Chalk", desc: "Rough chalky texture with dust", group: "brush" },
+    { id: "fire", icon: "🔥", label: "Fire", desc: "Flame particles drifting upward", group: "brush" },
+    { id: "bubble", icon: "🫧", label: "Bubble", desc: "Glowing hollow bubbles", group: "brush" },
+    { id: "zigzag", icon: "〰️", label: "Zigzag", desc: "Sawtooth stroke pattern", group: "brush" },
+    { id: "kaleidoscope", icon: "🔮", label: "Kaleido", desc: "8-way radial symmetry", group: "brush" },
+    { id: "lightning", icon: "🌩️", label: "Lightning", desc: "Recursive branching bolt", group: "brush" },
+    { id: "fur", icon: "🐡", label: "Fur", desc: "Bristle brush strokes", group: "brush" },
+    { id: "splatter", icon: "💥", label: "Splatter", desc: "Jackson Pollock paint drops", group: "brush" },
+    { id: "ribbon", icon: "🎀", label: "Ribbon", desc: "Gradient ribbon stroke", group: "brush" },
+    { id: "confetti", icon: "🎊", label: "Confetti", desc: "Colorful rotating rectangles", group: "brush" },
+    { id: "watercolor", icon: "💧", label: "Watercolor", desc: "Soft layered washes", group: "brush" },
+    { id: "mosaic", icon: "⬛", label: "Mosaic", desc: "Snap-to-grid tile painting", group: "brush" },
     { id: "fill", icon: "🪣", label: "Fill", desc: "Flood-fill an enclosed area", group: "utility" },
     { id: "eraser", icon: "🧹", label: "Eraser", desc: "Erase to white", group: "utility" },
     { id: "star", icon: "⭐", label: "Star", desc: "Stamp a 5-point star", group: "shape" },
     { id: "heart", icon: "❤️", label: "Heart", desc: "Stamp a heart", group: "shape" },
     { id: "circle", icon: "⬤", label: "Circle", desc: "Stamp a filled circle", group: "shape" },
+    { id: "diamond", icon: "💎", label: "Diamond", desc: "Stamp a diamond gem", group: "shape" },
+    { id: "triangle", icon: "🔺", label: "Triangle", desc: "Stamp a triangle", group: "shape" },
+    { id: "arrow", icon: "➡️", label: "Arrow", desc: "Stamp an arrow", group: "shape" },
+    { id: "spiral", icon: "🌀", label: "Spiral", desc: "Stamp a spiral", group: "shape" },
 ];
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -416,6 +450,523 @@ function applyGlitter(
     }
 }
 
+/** Chalk — rough textured strokes with dust particles */
+function applyChalk(
+    ctx: CanvasRenderingContext2D,
+    fromX: number, fromY: number, toX: number, toY: number,
+    color: string, size: number
+) {
+    const rgb = hexToRgb(color);
+    const dx = toX - fromX, dy = toY - fromY;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const steps = Math.max(1, Math.floor(dist / 2));
+    ctx.save();
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const cx = fromX + dx * t;
+        const cy = fromY + dy * t;
+        // Main chalk strand
+        for (let s = 0; s < 6; s++) {
+            const ox = (Math.random() - 0.5) * size * 1.2;
+            const oy = (Math.random() - 0.5) * size * 1.2;
+            const alpha = 0.3 + Math.random() * 0.45;
+            ctx.globalAlpha = alpha;
+            ctx.fillStyle = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+            ctx.fillRect(cx + ox, cy + oy, Math.random() * size * 0.5 + 0.5, Math.random() * 2 + 0.5);
+        }
+        // Dust specks
+        if (Math.random() < 0.35) {
+            ctx.globalAlpha = 0.15 + Math.random() * 0.2;
+            ctx.fillStyle = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+            ctx.beginPath();
+            ctx.arc(cx + (Math.random() - 0.5) * size * 3, cy + (Math.random() - 0.5) * size * 3, Math.random() * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+    ctx.restore();
+}
+
+const FIRE_PALETTE = ["#fff7aa", "#ffe666", "#ffb300", "#ff6a00", "#ff2200", "#cc0000"];
+
+/** Fire — upward drifting flame particles */
+function applyFire(
+    ctx: CanvasRenderingContext2D,
+    x: number, y: number,
+    size: number
+) {
+    ctx.save();
+    const count = Math.max(12, size * 4);
+    for (let i = 0; i < count; i++) {
+        const fc = FIRE_PALETTE[Math.floor(Math.random() * FIRE_PALETTE.length)];
+        const r = (Math.random() * size * 1.5) + size * 0.3;
+        const angle = Math.random() * Math.PI * 2;
+        const px = x + Math.cos(angle) * r * 0.6;
+        const py = y + Math.sin(angle) * r * 0.3 - Math.random() * size * 2.5; // drift upward
+        const pr = Math.random() * size * 0.9 + 1;
+        const grad = ctx.createRadialGradient(px, py, 0, px, py, pr);
+        grad.addColorStop(0, fc);
+        grad.addColorStop(1, "rgba(255,100,0,0)");
+        ctx.globalAlpha = 0.55 + Math.random() * 0.45;
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(px, py, pr, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+/** Bubble — spaced hollow glowing circles */
+function applyBubble(
+    ctx: CanvasRenderingContext2D,
+    fromX: number, fromY: number, toX: number, toY: number,
+    color: string, size: number
+) {
+    const rgb = hexToRgb(color);
+    const dx = toX - fromX, dy = toY - fromY;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const spacing = size * 2.2;
+    const steps = Math.max(1, Math.floor(dist / spacing));
+    ctx.save();
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const cx = fromX + dx * t;
+        const cy = fromY + dy * t;
+        const r = size * 1.4;
+        // Outer glow
+        ctx.globalAlpha = 0.12;
+        ctx.strokeStyle = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+        ctx.lineWidth = size * 0.6;
+        ctx.shadowColor = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+        ctx.shadowBlur = size * 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+        // Main bubble ring
+        ctx.globalAlpha = 0.65;
+        ctx.shadowBlur = size;
+        ctx.lineWidth = size * 0.35;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.stroke();
+        // Highlight
+        ctx.globalAlpha = 0.7;
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "rgba(255,255,255,0.8)";
+        ctx.lineWidth = size * 0.18;
+        ctx.beginPath();
+        ctx.arc(cx - r * 0.3, cy - r * 0.3, r * 0.3, 0, Math.PI * 2);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+/** Zigzag — sawtooth pattern perpendicular to stroke */
+function applyZigzag(
+    ctx: CanvasRenderingContext2D,
+    fromX: number, fromY: number, toX: number, toY: number,
+    color: string, size: number
+) {
+    const dx = toX - fromX, dy = toY - fromY;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = -dy / dist, ny = dx / dist; // perpendicular unit vector
+    const amplitude = size * 2.5;
+    const wavelength = size * 3;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = size * 0.7;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    const steps = Math.max(2, Math.floor(dist / (wavelength / 2)));
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const bx = fromX + dx * t;
+        const by = fromY + dy * t;
+        const flip = i % 2 === 0 ? 1 : -1;
+        const px = bx + nx * amplitude * flip;
+        const py = by + ny * amplitude * flip;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+}
+
+/** Kaleidoscope — 8-way radial symmetry around canvas center */
+function applyKaleidoscope(
+    ctx: CanvasRenderingContext2D,
+    canvas: HTMLCanvasElement,
+    fromX: number, fromY: number, toX: number, toY: number,
+    color: string, size: number
+) {
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    const segments = 8;
+    ctx.save();
+    ctx.translate(cx, cy);
+    for (let i = 0; i < segments; i++) {
+        const angle = (Math.PI * 2 * i) / segments;
+        ctx.save();
+        ctx.rotate(angle);
+        // Draw both the stroke and its mirror
+        for (const [fx, fy, tx, ty] of [[fromX - cx, fromY - cy, toX - cx, toY - cy], [-(fromX - cx), fromY - cy, -(toX - cx), toY - cy]]) {
+            ctx.beginPath();
+            ctx.moveTo(fx as number, fy as number);
+            ctx.lineTo(tx as number, ty as number);
+            ctx.strokeStyle = color;
+            ctx.lineWidth = size;
+            ctx.lineCap = "round";
+            ctx.lineJoin = "round";
+            ctx.shadowColor = color;
+            ctx.shadowBlur = size * 1.5;
+            ctx.globalAlpha = 0.7;
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+    ctx.restore();
+}
+
+/** Recursive lightning bolt segment */
+function _lightningSegment(
+    ctx: CanvasRenderingContext2D,
+    x1: number, y1: number, x2: number, y2: number,
+    depth: number, color: string, width: number
+) {
+    if (depth <= 0 || width < 0.3) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        return;
+    }
+    const mx = (x1 + x2) / 2 + (Math.random() - 0.5) * (Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) * 0.5);
+    const my = (y1 + y2) / 2 + (Math.random() - 0.5) * (Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2) * 0.5);
+    ctx.lineWidth = width;
+    _lightningSegment(ctx, x1, y1, mx, my, depth - 1, color, width * 0.65);
+    _lightningSegment(ctx, mx, my, x2, y2, depth - 1, color, width * 0.65);
+    // Occasional branch
+    if (Math.random() < 0.4) {
+        const bx = mx + (Math.random() - 0.5) * 80;
+        const by = my + (Math.random() - 0.5) * 80;
+        ctx.lineWidth = width * 0.4;
+        _lightningSegment(ctx, mx, my, bx, by, depth - 2, color, width * 0.4);
+    }
+}
+
+/** Lightning — recursive branching bolt */
+function applyLightning(
+    ctx: CanvasRenderingContext2D,
+    fromX: number, fromY: number, toX: number, toY: number,
+    color: string, size: number
+) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = size * 4;
+    ctx.globalAlpha = 0.9;
+    ctx.lineCap = "round";
+    _lightningSegment(ctx, fromX, fromY, toX, toY, 3, color, size);
+    // White-hot core
+    ctx.shadowBlur = size;
+    ctx.strokeStyle = "#ffffff";
+    ctx.globalAlpha = 0.6;
+    ctx.lineWidth = size * 0.3;
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(toX, toY);
+    ctx.stroke();
+    ctx.restore();
+}
+
+/** Fur — bristle brush perpendicular to stroke */
+function applyFur(
+    ctx: CanvasRenderingContext2D,
+    fromX: number, fromY: number, toX: number, toY: number,
+    color: string, size: number
+) {
+    const rgb = hexToRgb(color);
+    const dx = toX - fromX, dy = toY - fromY;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = -dy / dist, ny = dx / dist;
+    const steps = Math.max(1, Math.floor(dist / 2));
+    ctx.save();
+    ctx.lineCap = "round";
+    for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const cx = fromX + dx * t;
+        const cy = fromY + dy * t;
+        const bristles = Math.max(6, size * 2);
+        for (let b = 0; b < bristles; b++) {
+            const spread = (Math.random() - 0.5) * size * 2;
+            const length = (Math.random() * 0.6 + 0.4) * size * 2.5;
+            const alpha = 0.25 + Math.random() * 0.55;
+            ctx.globalAlpha = alpha;
+            ctx.strokeStyle = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+            ctx.lineWidth = Math.random() * 1.2 + 0.4;
+            ctx.beginPath();
+            ctx.moveTo(cx + nx * spread, cy + ny * spread);
+            ctx.lineTo(cx + nx * (spread + length), cy + ny * (spread + length));
+            ctx.stroke();
+        }
+    }
+    ctx.restore();
+}
+
+/** Splatter — Jackson Pollock-style paint drops */
+function applySplatter(
+    ctx: CanvasRenderingContext2D,
+    x: number, y: number,
+    color: string, size: number
+) {
+    const rgb = hexToRgb(color);
+    const drops = Math.max(8, size * 3);
+    ctx.save();
+    for (let i = 0; i < drops; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * size * 18;
+        const px = x + Math.cos(angle) * dist;
+        const py = y + Math.sin(angle) * dist * 0.7; // slight vertical squash
+        const r = Math.random() * size * 0.8 + 0.5;
+        ctx.globalAlpha = 0.55 + Math.random() * 0.45;
+        ctx.fillStyle = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+        ctx.beginPath();
+        ctx.arc(px, py, r, 0, Math.PI * 2);
+        ctx.fill();
+        // Tail (elongated drip toward center)
+        if (Math.random() < 0.4 && dist > size * 3) {
+            const tx = x + Math.cos(angle) * (dist * 0.5);
+            const ty = y + Math.sin(angle) * (dist * 0.5) * 0.7;
+            ctx.globalAlpha = 0.3;
+            ctx.strokeStyle = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+            ctx.lineWidth = r * 0.8;
+            ctx.lineCap = "round";
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(tx, ty);
+            ctx.stroke();
+        }
+    }
+    ctx.restore();
+}
+
+/** Ribbon — gradient filled band along stroke */
+function applyRibbon(
+    ctx: CanvasRenderingContext2D,
+    fromX: number, fromY: number, toX: number, toY: number,
+    color: string, size: number
+) {
+    const rgb = hexToRgb(color);
+    const dx = toX - fromX, dy = toY - fromY;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const nx = (-dy / dist) * size * 1.5, ny = (dx / dist) * size * 1.5;
+    ctx.save();
+    // Main ribbon body
+    const grad = ctx.createLinearGradient(fromX + nx, fromY + ny, fromX - nx, fromY - ny);
+    grad.addColorStop(0, `rgba(${rgb.r},${rgb.g},${rgb.b},0.15)`);
+    grad.addColorStop(0.5, `rgba(${rgb.r},${rgb.g},${rgb.b},0.9)`);
+    grad.addColorStop(1, `rgba(${rgb.r},${rgb.g},${rgb.b},0.15)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    ctx.moveTo(fromX + nx, fromY + ny);
+    ctx.lineTo(toX + nx, toY + ny);
+    ctx.lineTo(toX - nx, toY - ny);
+    ctx.lineTo(fromX - nx, fromY - ny);
+    ctx.closePath();
+    ctx.fill();
+    // Highlight
+    ctx.strokeStyle = `rgba(255,255,255,0.55)`;
+    ctx.lineWidth = size * 0.35;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(fromX + nx * 0.3, fromY + ny * 0.3);
+    ctx.lineTo(toX + nx * 0.3, toY + ny * 0.3);
+    ctx.stroke();
+    ctx.restore();
+}
+
+/** Confetti — rotating colorful rectangle bursts */
+function applyConfetti(
+    ctx: CanvasRenderingContext2D,
+    x: number, y: number,
+    color: string, size: number
+) {
+    const baseRgb = hexToRgb(color);
+    const count = Math.max(10, size * 3);
+    const confettiColors = [
+        color,
+        `hsl(${(parseInt(color.slice(1, 3), 16)) % 360 + 60},100%,55%)`,
+        `hsl(${(parseInt(color.slice(1, 3), 16)) % 360 + 120},100%,55%)`,
+        `hsl(${(parseInt(color.slice(1, 3), 16)) % 360 + 180},100%,55%)`,
+        "#ff6b6b", "#ffd93d", "#6bcb77", "#4d96ff",
+    ];
+    ctx.save();
+    for (let i = 0; i < count; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const dist = Math.random() * size * 10;
+        const px = x + Math.cos(angle) * dist;
+        const py = y + Math.sin(angle) * dist;
+        const rot = Math.random() * Math.PI;
+        const w = size * (0.5 + Math.random() * 1.2);
+        const h = size * (0.25 + Math.random() * 0.5);
+        const c = confettiColors[Math.floor(Math.random() * confettiColors.length)];
+        ctx.globalAlpha = 0.7 + Math.random() * 0.3;
+        ctx.fillStyle = c;
+        ctx.save();
+        ctx.translate(px, py);
+        ctx.rotate(rot);
+        ctx.fillRect(-w / 2, -h / 2, w, h);
+        ctx.restore();
+    }
+    ctx.restore();
+}
+
+/** Watercolor — layered semi-transparent blobs */
+function applyWatercolor(
+    ctx: CanvasRenderingContext2D,
+    fromX: number, fromY: number, toX: number, toY: number,
+    color: string, size: number
+) {
+    const rgb = hexToRgb(color);
+    ctx.save();
+    for (let layer = 0; layer < 5; layer++) {
+        const ox = (Math.random() - 0.5) * size * 1.5;
+        const oy = (Math.random() - 0.5) * size * 1.5;
+        const sw = size * (1.5 + Math.random() * 2);
+        ctx.globalAlpha = 0.04 + Math.random() * 0.08;
+        ctx.strokeStyle = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+        ctx.lineWidth = sw;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.shadowColor = `rgb(${rgb.r},${rgb.g},${rgb.b})`;
+        ctx.shadowBlur = sw * 0.5;
+        ctx.beginPath();
+        ctx.moveTo(fromX + ox, fromY + oy);
+        ctx.lineTo(toX + ox, toY + oy);
+        ctx.stroke();
+    }
+    ctx.restore();
+}
+
+/** Mosaic — snaps to grid cells */
+function applyMosaic(
+    ctx: CanvasRenderingContext2D,
+    x: number, y: number,
+    color: string, size: number
+) {
+    const cellSize = Math.max(size * 2, 8);
+    const gx = Math.floor(x / cellSize) * cellSize;
+    const gy = Math.floor(y / cellSize) * cellSize;
+    ctx.save();
+    ctx.fillStyle = color;
+    ctx.fillRect(gx, gy, cellSize, cellSize);
+    // Subtle highlight edge
+    ctx.strokeStyle = "rgba(255,255,255,0.3)";
+    ctx.lineWidth = 1;
+    ctx.strokeRect(gx, gy, cellSize, cellSize);
+    ctx.restore();
+}
+
+/** Diamond stamp */
+function applyDiamondStamp(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number,
+    color: string, size: number
+) {
+    const r = size * 2.5;
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = size * 2;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx + r * 0.65, cy - r * 0.2);
+    ctx.lineTo(cx + r * 0.65, cy + r * 0.2);
+    ctx.lineTo(cx, cy + r);
+    ctx.lineTo(cx - r * 0.65, cy + r * 0.2);
+    ctx.lineTo(cx - r * 0.65, cy - r * 0.2);
+    ctx.closePath();
+    ctx.fill();
+    // Shine
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.2, cy - r * 0.85);
+    ctx.lineTo(cx + r * 0.35, cy - r * 0.2);
+    ctx.lineTo(cx, cy - r * 0.15);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+}
+
+/** Triangle stamp */
+function applyTriangleStamp(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number,
+    color: string, size: number
+) {
+    const r = size * 2.5;
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = size * 2;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - r);
+    ctx.lineTo(cx + r * 0.87, cy + r * 0.5);
+    ctx.lineTo(cx - r * 0.87, cy + r * 0.5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+}
+
+/** Arrow stamp */
+function applyArrowStamp(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number,
+    color: string, size: number
+) {
+    const s = size * 2;
+    ctx.save();
+    ctx.shadowColor = color;
+    ctx.shadowBlur = size * 2;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(cx + s, cy);           // tip
+    ctx.lineTo(cx, cy - s * 0.6);    // top wing
+    ctx.lineTo(cx, cy - s * 0.25);   // inner top
+    ctx.lineTo(cx - s, cy - s * 0.25); // tail top
+    ctx.lineTo(cx - s, cy + s * 0.25); // tail bottom
+    ctx.lineTo(cx, cy + s * 0.25);    // inner bottom
+    ctx.lineTo(cx, cy + s * 0.6);    // bottom wing
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+}
+
+/** Spiral stamp */
+function applySpiralStamp(
+    ctx: CanvasRenderingContext2D,
+    cx: number, cy: number,
+    color: string, size: number
+) {
+    const turns = 3;
+    const maxR = size * 2.8;
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = size * 0.5;
+    ctx.lineCap = "round";
+    ctx.shadowColor = color;
+    ctx.shadowBlur = size * 2;
+    ctx.beginPath();
+    const steps = turns * 60;
+    for (let i = 0; i <= steps; i++) {
+        const angle = (i / steps) * turns * Math.PI * 2;
+        const r = (i / steps) * maxR;
+        const px = cx + Math.cos(angle) * r;
+        const py = cy + Math.sin(angle) * r;
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+}
+
 // ── WebSocket hook ────────────────────────────────────────────────────────────
 
 type WsStatus = "connecting" | "connected" | "disconnected" | "full";
@@ -473,7 +1024,7 @@ function sleep(ms: number, signal: AbortSignal): Promise<void> {
     });
 }
 
-function useWebSocket(roomId: string, onMessage: (data: DrawEvent) => void) {
+function useWebSocket(roomId: string, playerName: string, onMessage: (data: DrawEvent) => void) {
     const wsRef = useRef<WebSocket | null>(null);
     const [wsStatus, setWsStatus] = useState<WsStatus>("disconnected");
     const retryCount = useRef(0);
@@ -510,6 +1061,7 @@ function useWebSocket(roomId: string, onMessage: (data: DrawEvent) => void) {
             ws.onopen = () => {
                 retryCount.current = 0;
                 setWsStatus("connected");
+                ws.send(JSON.stringify({ type: "join", name: playerName }));
             };
 
             ws.onclose = (e) => {
@@ -540,7 +1092,7 @@ function useWebSocket(roomId: string, onMessage: (data: DrawEvent) => void) {
             wsRef.current?.close();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [roomId]);
+    }, [roomId, playerName]);
 
     const send = useCallback((data: DrawEvent) => {
         if (wsRef.current?.readyState === WebSocket.OPEN) {
@@ -634,6 +1186,8 @@ function ToolBtn({
 export default function RoomPage() {
     const params = useParams<{ roomId: string }>();
     const roomId = params?.roomId ?? "unknown";
+    const searchParams = useSearchParams();
+    const myName = searchParams.get("name") ?? "Player";
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
@@ -642,9 +1196,14 @@ export default function RoomPage() {
     const lastPosRef = useRef<{ x: number; y: number } | null>(null);
     const hueRef = useRef(0);   // for rainbow brush
 
-    // ── History (undo / redo)
+    // ── Peer cursor
+    const peerCursorRef = useRef<HTMLDivElement>(null);
+    const lastCursorSendRef = useRef(0);
     const historyRef = useRef<ImageData[]>([]);
     const historyIndexRef = useRef(-1);
+    const touchStartRef = useRef<(e: TouchEvent) => void>(() => {});
+    const touchMoveRef = useRef<(e: TouchEvent) => void>(() => {});
+    const touchEndRef = useRef<(e: TouchEvent) => void>(() => {});
     const [canUndo, setCanUndo] = useState(false);
     const [canRedo, setCanRedo] = useState(false);
     const [hasDrawn, setHasDrawn] = useState(false);   // hides hint overlay once user starts
@@ -751,9 +1310,78 @@ export default function RoomPage() {
         if (data.type === "player_left") {
             setPlayer2Status("waiting");
             setActivityMsg("Your friend left. Waiting for someone to join…");
+            // Hide their cursor
+            const ce = peerCursorRef.current;
+            if (ce) ce.style.display = "none";
+            return;
+        }
+        if (data.type === "cursor") {
+            const ce = peerCursorRef.current;
+            if (!ce) return;
+            if ((data.x ?? -1) < 0) {
+                ce.style.display = "none";
+            } else {
+                ce.style.display = "block";
+                ce.style.left = ((data.x! / 1280) * 100) + "%";
+                ce.style.top  = ((data.y! / 720)  * 100) + "%";
+            }
             return;
         }
         if (data.type === "connected" || data.type === "error" || data.type === "end") {
+            return;
+        }
+
+        // ── Replay draw history on reconnect ──
+        if (data.type === "draw_history_sync") {
+            const canvas = canvasRef.current;
+            const ctx = ctxRef.current;
+            if (!canvas || !ctx) return;
+            const history = data.history;
+            if (!history || !Array.isArray(history)) return;
+            for (const ev of history) {
+                if (ev.type === "clear") {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    fillWhite(ctx, canvas);
+                } else if (ev.type === "draw" && ev.fromX !== undefined) {
+                    const tool = ev.tool ?? "pen";
+                    if (tool === "neon") applyNeon(ctx, ev.fromX!, ev.fromY!, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "rainbow") applyRainbow(ctx, ev.fromX!, ev.fromY!, ev.x!, ev.y!, ev.hue ?? 0, ev.size!);
+                    else if (tool === "spray") applySpray(ctx, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "glitter") applyGlitter(ctx, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "mirror") applyMirror(ctx, canvas, ev.fromX!, ev.fromY!, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "chalk") applyChalk(ctx, ev.fromX!, ev.fromY!, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "fire") applyFire(ctx, ev.x!, ev.y!, ev.size!);
+                    else if (tool === "bubble") applyBubble(ctx, ev.fromX!, ev.fromY!, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "zigzag") applyZigzag(ctx, ev.fromX!, ev.fromY!, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "kaleidoscope") applyKaleidoscope(ctx, canvas, ev.fromX!, ev.fromY!, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "lightning") applyLightning(ctx, ev.fromX!, ev.fromY!, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "fur") applyFur(ctx, ev.fromX!, ev.fromY!, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "splatter") applySplatter(ctx, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "ribbon") applyRibbon(ctx, ev.fromX!, ev.fromY!, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "confetti") applyConfetti(ctx, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "watercolor") applyWatercolor(ctx, ev.fromX!, ev.fromY!, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else if (tool === "mosaic") applyMosaic(ctx, ev.x!, ev.y!, ev.color!, ev.size!);
+                    else applyLine(ctx, ev.fromX!, ev.fromY!, ev.x!, ev.y!, ev.color!, ev.size!);
+                } else if (ev.type === "fill") {
+                    applyFloodFill(ctx, canvas, ev.x!, ev.y!, ev.color!);
+                } else if (ev.type === "stamp") {
+                    const s = ev.size!;
+                    if (ev.tool === "star") applyStarStamp(ctx, ev.x!, ev.y!, ev.color!, s);
+                    if (ev.tool === "heart") applyHeartStamp(ctx, ev.x!, ev.y!, ev.color!, s);
+                    if (ev.tool === "circle") applyCircleStamp(ctx, ev.x!, ev.y!, ev.color!, s);
+                    if (ev.tool === "diamond") applyDiamondStamp(ctx, ev.x!, ev.y!, ev.color!, s);
+                    if (ev.tool === "triangle") applyTriangleStamp(ctx, ev.x!, ev.y!, ev.color!, s);
+                    if (ev.tool === "arrow") applyArrowStamp(ctx, ev.x!, ev.y!, ev.color!, s);
+                    if (ev.tool === "spiral") applySpiralStamp(ctx, ev.x!, ev.y!, ev.color!, s);
+                }
+            }
+            // Save restored canvas as new history base
+            const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            historyRef.current = [snap];
+            historyIndexRef.current = 0;
+            setCanUndo(false);
+            setCanRedo(false);
+            setActivityMsg("Reconnected — canvas restored!");
             return;
         }
 
@@ -770,6 +1398,18 @@ export default function RoomPage() {
             else if (tool === "spray") applySpray(ctx, data.x!, data.y!, data.color!, data.size!);
             else if (tool === "glitter") applyGlitter(ctx, data.x!, data.y!, data.color!, data.size!);
             else if (tool === "mirror") applyMirror(ctx, canvas, data.fromX!, data.fromY!, data.x!, data.y!, data.color!, data.size!);
+            else if (tool === "chalk") applyChalk(ctx, data.fromX!, data.fromY!, data.x!, data.y!, data.color!, data.size!);
+            else if (tool === "fire") applyFire(ctx, data.x!, data.y!, data.size!);
+            else if (tool === "bubble") applyBubble(ctx, data.fromX!, data.fromY!, data.x!, data.y!, data.color!, data.size!);
+            else if (tool === "zigzag") applyZigzag(ctx, data.fromX!, data.fromY!, data.x!, data.y!, data.color!, data.size!);
+            else if (tool === "kaleidoscope") applyKaleidoscope(ctx, canvas, data.fromX!, data.fromY!, data.x!, data.y!, data.color!, data.size!);
+            else if (tool === "lightning") applyLightning(ctx, data.fromX!, data.fromY!, data.x!, data.y!, data.color!, data.size!);
+            else if (tool === "fur") applyFur(ctx, data.fromX!, data.fromY!, data.x!, data.y!, data.color!, data.size!);
+            else if (tool === "splatter") applySplatter(ctx, data.x!, data.y!, data.color!, data.size!);
+            else if (tool === "ribbon") applyRibbon(ctx, data.fromX!, data.fromY!, data.x!, data.y!, data.color!, data.size!);
+            else if (tool === "confetti") applyConfetti(ctx, data.x!, data.y!, data.color!, data.size!);
+            else if (tool === "watercolor") applyWatercolor(ctx, data.fromX!, data.fromY!, data.x!, data.y!, data.color!, data.size!);
+            else if (tool === "mosaic") applyMosaic(ctx, data.x!, data.y!, data.color!, data.size!);
             else applyLine(ctx, data.fromX!, data.fromY!, data.x!, data.y!, data.color!, data.size!);
             setActivityMsg("Friend is drawing…");
             setTimeout(() => setActivityMsg("Both players connected · Draw away!"), 2000);
@@ -784,6 +1424,10 @@ export default function RoomPage() {
             if (data.tool === "star") applyStarStamp(ctx, data.x!, data.y!, data.color!, s);
             if (data.tool === "heart") applyHeartStamp(ctx, data.x!, data.y!, data.color!, s);
             if (data.tool === "circle") applyCircleStamp(ctx, data.x!, data.y!, data.color!, s);
+            if (data.tool === "diamond") applyDiamondStamp(ctx, data.x!, data.y!, data.color!, s);
+            if (data.tool === "triangle") applyTriangleStamp(ctx, data.x!, data.y!, data.color!, s);
+            if (data.tool === "arrow") applyArrowStamp(ctx, data.x!, data.y!, data.color!, s);
+            if (data.tool === "spiral") applySpiralStamp(ctx, data.x!, data.y!, data.color!, s);
         }
 
         if (data.type === "clear") {
@@ -794,17 +1438,26 @@ export default function RoomPage() {
     }, []);
 
     const router = useRouter();
-    const { wsStatus, send } = useWebSocket(roomId, handleRemoteEvent);
+    const { wsStatus, send } = useWebSocket(roomId, myName, handleRemoteEvent);
+
+    // ── Throttled cursor sender (~30 fps)
+    function trackCursor(e: React.MouseEvent | React.TouchEvent) {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const now = Date.now();
+        if (now - lastCursorSendRef.current < 33) return;
+        lastCursorSendRef.current = now;
+        const pos = getCanvasCoords(e, canvas);
+        send({ type: "cursor", x: pos.x, y: pos.y });
+    }
 
     useEffect(() => {
         if (wsStatus === "full") {
-            // Room already has 2 players — redirect to the room-full page
             router.replace("/room-full");
         } else if (wsStatus === "disconnected") {
             setPlayer2Status("waiting");
             setActivityMsg("Connection lost. Reconnecting…");
         }
-        // player2Status is now driven by player_joined / player_left events from the server
     }, [wsStatus, router]);
 
     // ── Drawing event handlers ──────────────────────────────────────────────────
@@ -833,7 +1486,8 @@ export default function RoomPage() {
         const from = lastPosRef.current ?? pos;
 
         // Stamp tools: handle on click, not drag
-        if (activeTool === "star" || activeTool === "heart" || activeTool === "circle") {
+        if (activeTool === "star" || activeTool === "heart" || activeTool === "circle"
+            || activeTool === "diamond" || activeTool === "triangle" || activeTool === "arrow" || activeTool === "spiral") {
             lastPosRef.current = pos;
             return;
         }
@@ -854,6 +1508,42 @@ export default function RoomPage() {
         } else if (activeTool === "mirror") {
             applyMirror(ctx, canvas, from.x, from.y, pos.x, pos.y, activeColor, activeSize);
             send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "mirror" });
+        } else if (activeTool === "chalk") {
+            applyChalk(ctx, from.x, from.y, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "chalk" });
+        } else if (activeTool === "fire") {
+            applyFire(ctx, pos.x, pos.y, activeSize);
+            send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "fire" });
+        } else if (activeTool === "bubble") {
+            applyBubble(ctx, from.x, from.y, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "bubble" });
+        } else if (activeTool === "zigzag") {
+            applyZigzag(ctx, from.x, from.y, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "zigzag" });
+        } else if (activeTool === "kaleidoscope") {
+            applyKaleidoscope(ctx, canvas, from.x, from.y, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "kaleidoscope" });
+        } else if (activeTool === "lightning") {
+            applyLightning(ctx, from.x, from.y, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "lightning" });
+        } else if (activeTool === "fur") {
+            applyFur(ctx, from.x, from.y, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "fur" });
+        } else if (activeTool === "splatter") {
+            applySplatter(ctx, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "splatter" });
+        } else if (activeTool === "ribbon") {
+            applyRibbon(ctx, from.x, from.y, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "ribbon" });
+        } else if (activeTool === "confetti") {
+            applyConfetti(ctx, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "confetti" });
+        } else if (activeTool === "watercolor") {
+            applyWatercolor(ctx, from.x, from.y, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "watercolor" });
+        } else if (activeTool === "mosaic") {
+            applyMosaic(ctx, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "draw", fromX: from.x, fromY: from.y, x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "mosaic" });
         } else {
             // pen or eraser
             applyLine(ctx, from.x, from.y, pos.x, pos.y, activeColor, activeSize);
@@ -869,14 +1559,40 @@ export default function RoomPage() {
         isDrawingRef.current = false;
         lastPosRef.current = null;
         send({ type: "end" });
+        // On touch, fire stamp/fill since click doesn't fire after preventDefault
+        if ("touches" in e || "changedTouches" in e) {
+            handleCanvasClick(e);
+        }
     }
 
-    function handleCanvasClick(e: React.MouseEvent) {
+    // Keep touch handler refs up-to-date (closures change each render)
+    touchStartRef.current = (e: TouchEvent) => startDraw(e as unknown as React.TouchEvent);
+    touchMoveRef.current = (e: TouchEvent) => { draw(e as unknown as React.TouchEvent); trackCursor(e as unknown as React.TouchEvent); };
+    touchEndRef.current = (e: TouchEvent) => endDraw(e as unknown as React.TouchEvent);
+
+    // Register non-passive touch listeners so preventDefault works on mobile
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const onStart = (e: TouchEvent) => touchStartRef.current(e);
+        const onMove  = (e: TouchEvent) => touchMoveRef.current(e);
+        const onEnd   = (e: TouchEvent) => touchEndRef.current(e);
+        canvas.addEventListener("touchstart", onStart, { passive: false });
+        canvas.addEventListener("touchmove",  onMove,  { passive: false });
+        canvas.addEventListener("touchend",   onEnd,   { passive: false });
+        return () => {
+            canvas.removeEventListener("touchstart", onStart);
+            canvas.removeEventListener("touchmove",  onMove);
+            canvas.removeEventListener("touchend",   onEnd);
+        };
+    }, []);
+
+    function handleCanvasClick(e: React.MouseEvent | React.TouchEvent | TouchEvent) {
         const canvas = canvasRef.current;
         if (!canvas) return;
         const ctx = ctxRef.current;
         if (!ctx) return;
-        const pos = getCanvasCoords(e, canvas);
+        const pos = getCanvasCoords(e as React.MouseEvent | React.TouchEvent, canvas);
 
         if (activeTool === "fill") {
             applyFloodFill(ctx, canvas, pos.x, pos.y, activeColor);
@@ -890,6 +1606,18 @@ export default function RoomPage() {
         } else if (activeTool === "circle") {
             applyCircleStamp(ctx, pos.x, pos.y, activeColor, activeSize);
             send({ type: "stamp", x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "circle" });
+        } else if (activeTool === "diamond") {
+            applyDiamondStamp(ctx, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "stamp", x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "diamond" });
+        } else if (activeTool === "triangle") {
+            applyTriangleStamp(ctx, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "stamp", x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "triangle" });
+        } else if (activeTool === "arrow") {
+            applyArrowStamp(ctx, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "stamp", x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "arrow" });
+        } else if (activeTool === "spiral") {
+            applySpiralStamp(ctx, pos.x, pos.y, activeColor, activeSize);
+            send({ type: "stamp", x: pos.x, y: pos.y, color: activeColor, size: activeSize, tool: "spiral" });
         }
     }
 
@@ -923,7 +1651,8 @@ export default function RoomPage() {
 
     function selectTool(id: ToolName) {
         setActiveTool(id);
-        if (id !== "eraser" && id !== "fill" && id !== "star" && id !== "heart" && id !== "circle") {
+        if (id !== "eraser" && id !== "fill" && id !== "star" && id !== "heart" && id !== "circle"
+            && id !== "diamond" && id !== "triangle" && id !== "arrow" && id !== "spiral") {
             hueRef.current = 0;
         }
     }
@@ -968,7 +1697,13 @@ export default function RoomPage() {
     const cursorMap: Record<ToolName, string> = {
         pen: "crosshair", neon: "crosshair", rainbow: "crosshair", spray: "cell",
         mirror: "crosshair", glitter: "cell",
-        fill: "copy", eraser: "cell", star: "copy", heart: "copy", circle: "copy",
+        chalk: "crosshair", fire: "cell", bubble: "crosshair", zigzag: "crosshair",
+        kaleidoscope: "crosshair", lightning: "crosshair", fur: "crosshair",
+        splatter: "cell", ribbon: "crosshair", confetti: "cell",
+        watercolor: "crosshair", mosaic: "crosshair",
+        fill: "copy", eraser: "cell",
+        star: "copy", heart: "copy", circle: "copy",
+        diamond: "copy", triangle: "copy", arrow: "copy", spiral: "copy",
     };
 
     // ── Brush preview color ──────────────────────────────────────────────────────
@@ -1042,7 +1777,7 @@ export default function RoomPage() {
         }
         .canvas-wrapper:fullscreen canvas,
         .canvas-wrapper:-webkit-full-screen canvas {
-          max-height: calc(100vh - 60px);
+          max-height: calc(100vh - 110px);
           max-width: 100vw;
           width: auto !important;
           height: auto !important;
@@ -1060,10 +1795,11 @@ export default function RoomPage() {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 5px;
-          padding: 5px 10px;
-          flex-wrap: nowrap;
-          overflow-x: auto;
+          gap: 4px;
+          padding: 5px 8px;
+          flex-wrap: wrap;
+          overflow-y: auto;
+          max-height: 106px;
           flex-shrink: 0;
           animation: fsToolbarIn 0.25s ease-out;
         }
@@ -1142,18 +1878,46 @@ export default function RoomPage() {
                                 width={1280}
                                 height={720}
                                 className="canvas-host"
-                                style={{ width: "100%", height: "100%", cursor: cursorMap[activeTool] }}
+                                style={{ width: "100%", height: "100%", cursor: cursorMap[activeTool], touchAction: "none" }}
                                 onMouseDown={startDraw}
-                                onMouseMove={draw}
+                                onMouseMove={(e) => { draw(e); trackCursor(e); }}
                                 onMouseUp={(e) => { endDraw(e); handleCanvasClick(e); }}
-                                onMouseLeave={endDraw}
-                                onTouchStart={startDraw}
-                                onTouchMove={draw}
-                                onTouchEnd={(e) => { endDraw(e); }}
+                                onMouseLeave={(e) => { endDraw(e); send({ type: "cursor", x: -1, y: -1 }); }}
                                 onClick={handleCanvasClick}
                             />
 
-                            {/* Fullscreen toggle button — always top-right of canvas area */}
+                            {/* ── Peer cursor overlay (Canva-style live pointer) ── */}
+                            <div
+                                ref={peerCursorRef}
+                                style={{
+                                    display: "none",
+                                    position: "absolute",
+                                    pointerEvents: "none",
+                                    zIndex: 15,
+                                    transform: "translate(-3px, -3px)",
+                                    transition: "left 0.06s linear, top 0.06s linear",
+                                    willChange: "left, top",
+                                }}
+                            >
+                                <svg width="22" height="22" viewBox="0 0 22 22" style={{ display: "block", filter: "drop-shadow(0 1px 4px rgba(0,0,0,0.4))" }}>
+                                    <path d="M4 2L19 11L11 13.5L8.5 19L4 2Z" fill="#22c55e" stroke="white" strokeWidth="1.5" strokeLinejoin="round" />
+                                </svg>
+                                <div style={{
+                                    background: "#22c55e",
+                                    color: "white",
+                                    fontSize: "0.62rem",
+                                    fontWeight: 800,
+                                    padding: "2px 8px",
+                                    borderRadius: "9999px",
+                                    marginTop: 2,
+                                    whiteSpace: "nowrap",
+                                    fontFamily: "var(--font-nunito),Nunito,sans-serif",
+                                    boxShadow: "0 2px 8px rgba(34,197,94,0.45)",
+                                    letterSpacing: "0.3px",
+                                }}>
+                                    Player 2
+                                </div>
+                            </div>
                             <button
                                 id="fullscreen-btn"
                                 onClick={toggleFullscreen}
@@ -1203,13 +1967,13 @@ export default function RoomPage() {
                             <div className="fs-toolbar">
 
                                 {/* Tool quick-pick */}
-                                {TOOLS.filter(t => ["pen", "neon", "rainbow", "spray", "mirror", "glitter", "eraser"].includes(t.id)).map(t => (
+                                {TOOLS.filter(t => ["pen", "neon", "rainbow", "spray", "mirror", "glitter", "chalk", "fire", "bubble", "zigzag", "kaleidoscope", "lightning", "fur", "splatter", "ribbon", "confetti", "watercolor", "mosaic", "eraser"].includes(t.id)).map(t => (
                                     <button
                                         key={t.id}
                                         title={t.desc}
                                         onClick={() => selectTool(t.id)}
                                         style={{
-                                            width: 40, height: 40,
+                                            width: 36, height: 36,
                                             borderRadius: "0.6rem",
                                             border: activeTool === t.id ? "2px solid #6366f1" : "1.5px solid rgba(255,255,255,0.12)",
                                             background: activeTool === t.id ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.07)",
@@ -1227,13 +1991,13 @@ export default function RoomPage() {
                                 <span style={{ width: 1, height: 32, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} />
 
                                 {/* Fill + stamps */}
-                                {TOOLS.filter(t => ["fill", "star", "heart", "circle"].includes(t.id)).map(t => (
+                                {TOOLS.filter(t => ["fill", "star", "heart", "circle", "diamond", "triangle", "arrow", "spiral"].includes(t.id)).map(t => (
                                     <button
                                         key={t.id}
                                         title={t.desc}
                                         onClick={() => selectTool(t.id)}
                                         style={{
-                                            width: 40, height: 40,
+                                            width: 36, height: 36,
                                             borderRadius: "0.6rem",
                                             border: activeTool === t.id ? "2px solid #22c55e" : "1.5px solid rgba(255,255,255,0.12)",
                                             background: activeTool === t.id ? "rgba(34,197,94,0.2)" : "rgba(255,255,255,0.07)",
@@ -1287,11 +2051,11 @@ export default function RoomPage() {
                                 <span style={{ width: 1, height: 32, background: "rgba(255,255,255,0.1)", flexShrink: 0 }} />
 
                                 {/* Undo / Redo */}
-                                <button onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" style={{ width: 40, height: 40, borderRadius: "0.6rem", border: "1.5px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.07)", color: canUndo ? "white" : "#475569", opacity: canUndo ? 1 : 0.4, fontSize: "1rem" }}>↩</button>
-                                <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)" style={{ width: 40, height: 40, borderRadius: "0.6rem", border: "1.5px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.07)", color: canRedo ? "white" : "#475569", opacity: canRedo ? 1 : 0.4, fontSize: "1rem" }}>↪</button>
+                                <button onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" style={{ width: 36, height: 36, borderRadius: "0.6rem", border: "1.5px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.07)", color: canUndo ? "white" : "#475569", opacity: canUndo ? 1 : 0.4, fontSize: "1rem" }}>↩</button>
+                                <button onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)" style={{ width: 36, height: 36, borderRadius: "0.6rem", border: "1.5px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.07)", color: canRedo ? "white" : "#475569", opacity: canRedo ? 1 : 0.4, fontSize: "1rem" }}>↪</button>
 
                                 {/* Exit fullscreen */}
-                                <button onClick={toggleFullscreen} title="Exit Fullscreen" style={{ marginLeft: 4, width: 40, height: 40, borderRadius: "0.6rem", border: "1.5px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.15)", color: "#fca5a5", fontSize: "0.95rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                <button onClick={toggleFullscreen} title="Exit Fullscreen" style={{ marginLeft: 4, width: 36, height: 36, borderRadius: "0.6rem", border: "1.5px solid rgba(239,68,68,0.4)", background: "rgba(239,68,68,0.15)", color: "#fca5a5", fontSize: "0.95rem", display: "flex", alignItems: "center", justifyContent: "center" }}>
                                     🗗
                                 </button>
                             </div>
@@ -1438,7 +2202,7 @@ export default function RoomPage() {
                             {activeTool === "fill" && (
                                 <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Click anywhere on the canvas to fill</span>
                             )}
-                            {(activeTool === "star" || activeTool === "heart" || activeTool === "circle") && (
+                            {(activeTool === "star" || activeTool === "heart" || activeTool === "circle" || activeTool === "diamond" || activeTool === "triangle" || activeTool === "arrow" || activeTool === "spiral") && (
                                 <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Click to stamp</span>
                             )}
                             {activeTool === "mirror" && (
@@ -1446,6 +2210,42 @@ export default function RoomPage() {
                             )}
                             {activeTool === "glitter" && (
                                 <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Hold &amp; drag to scatter sparkles ✨</span>
+                            )}
+                            {activeTool === "chalk" && (
+                                <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Rough chalky texture with dust particles 🖍️</span>
+                            )}
+                            {activeTool === "fire" && (
+                                <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Hold &amp; drag to paint flames 🔥</span>
+                            )}
+                            {activeTool === "bubble" && (
+                                <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Drag to trail glowing bubbles 🫧</span>
+                            )}
+                            {activeTool === "zigzag" && (
+                                <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Drag to draw a sawtooth zigzag 〰️</span>
+                            )}
+                            {activeTool === "kaleidoscope" && (
+                                <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>8-way symmetry around the canvas center 🔮</span>
+                            )}
+                            {activeTool === "lightning" && (
+                                <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Drag to spark recursive lightning bolts 🌩️</span>
+                            )}
+                            {activeTool === "fur" && (
+                                <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Drag to paint soft fur bristles 🐡</span>
+                            )}
+                            {activeTool === "splatter" && (
+                                <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Hold &amp; drag to splatter paint 💥</span>
+                            )}
+                            {activeTool === "ribbon" && (
+                                <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Drag to paint a gradient ribbon 🎀</span>
+                            )}
+                            {activeTool === "confetti" && (
+                                <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Hold &amp; drag to burst confetti 🎊</span>
+                            )}
+                            {activeTool === "watercolor" && (
+                                <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Drag for soft layered watercolor washes 💧</span>
+                            )}
+                            {activeTool === "mosaic" && (
+                                <span style={{ fontSize: "0.74rem", color: "#94a3b8", marginLeft: 4 }}>Drag to paint snap-to-grid tiles ⬛</span>
                             )}
                             {/* Undo / Redo hint */}
                             <span style={{ marginLeft: "auto", fontSize: "0.68rem", color: "#cbd5e1", fontFamily: "var(--font-nunito),Nunito,sans-serif" }}>
