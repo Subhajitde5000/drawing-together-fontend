@@ -420,25 +420,65 @@ function applyGlitter(
 
 type WsStatus = "connecting" | "connected" | "disconnected" | "full";
 
+const WS_MAX_RETRIES = 8;
+const WS_BASE_DELAY_MS = 2000;
+
 function useWebSocket(roomId: string, onMessage: (data: DrawEvent) => void) {
     const wsRef = useRef<WebSocket | null>(null);
     const [wsStatus, setWsStatus] = useState<WsStatus>("disconnected");
+    const retryCount = useRef(0);
+    const retryTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const destroyed = useRef(false);
+    const onMessageRef = useRef(onMessage);
+    onMessageRef.current = onMessage;
 
     useEffect(() => {
-        const backendUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
-        const ws = new WebSocket(`${backendUrl}/ws/${roomId}`);
-        wsRef.current = ws;
-        setWsStatus("connecting");
-        ws.onopen = () => setWsStatus("connected");
-        ws.onclose = (e) => {
-            // Code 4000 means the room is already full
-            setWsStatus(e.code === 4000 ? "full" : "disconnected");
+        destroyed.current = false;
+        retryCount.current = 0;
+
+        function connect() {
+            if (destroyed.current) return;
+            const backendUrl = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000";
+            const ws = new WebSocket(`${backendUrl}/ws/${roomId}`);
+            wsRef.current = ws;
+            setWsStatus("connecting");
+
+            ws.onopen = () => {
+                retryCount.current = 0;
+                setWsStatus("connected");
+            };
+
+            ws.onclose = (e) => {
+                if (e.code === 4000) {
+                    setWsStatus("full");
+                    return;  // room full — no retry
+                }
+                if (destroyed.current) return;
+                // Retry with exponential backoff, cap at WS_MAX_RETRIES
+                if (retryCount.current < WS_MAX_RETRIES) {
+                    const delay = WS_BASE_DELAY_MS * Math.pow(1.5, retryCount.current);
+                    retryCount.current += 1;
+                    setWsStatus("disconnected");
+                    retryTimer.current = setTimeout(connect, delay);
+                } else {
+                    setWsStatus("disconnected");
+                }
+            };
+
+            ws.onerror = () => { /* onclose fires after onerror — handled there */ };
+
+            ws.onmessage = (event) => {
+                try { onMessageRef.current(JSON.parse(event.data)); } catch { /* ignore */ }
+            };
+        }
+
+        connect();
+
+        return () => {
+            destroyed.current = true;
+            if (retryTimer.current) clearTimeout(retryTimer.current);
+            wsRef.current?.close();
         };
-        ws.onerror = () => setWsStatus("disconnected");
-        ws.onmessage = (event) => {
-            try { onMessage(JSON.parse(event.data)); } catch { /* ignore */ }
-        };
-        return () => ws.close();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [roomId]);
 
