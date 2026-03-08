@@ -424,30 +424,33 @@ const WS_MAX_RETRIES = 12;
 const WS_BASE_DELAY_MS = 3000;
 // How long to poll the HTTP health endpoint before giving up (ms)
 const WAKE_TIMEOUT_MS = 90_000;
-const WAKE_POLL_MS = 4_000;
+const WAKE_POLL_MS = 5_000;
 
 /**
- * Ping the HTTP health endpoint to wake Render's free-tier dyno.
- * Uses mode:no-cors so CORS headers on the backend are irrelevant for this
- * fire-and-forget wake request. Resolves as soon as the server responds
- * (any status) or after WAKE_TIMEOUT_MS.
+ * Poll GET /  until it returns HTTP 200 (server is awake) or the signal is
+ * aborted. Returns true if the server is ready, false on timeout/abort.
+ * Uses a plain fetch with credentials omitted so CORS works with allow_origins=*.
  */
-async function waitForBackend(httpUrl: string, signal: AbortSignal): Promise<void> {
+async function waitForBackend(httpUrl: string, signal: AbortSignal): Promise<boolean> {
     const deadline = Date.now() + WAKE_TIMEOUT_MS;
     while (Date.now() < deadline) {
-        if (signal.aborted) return;
+        if (signal.aborted) return false;
         try {
-            // no-cors: opaque response — we can't read status, but if fetch
-            // doesn't throw the server is alive and accepting connections.
-            await fetch(`${httpUrl}/`, { signal, method: "GET", mode: "no-cors", cache: "no-store" });
-            return; // server responded — wake complete
-        } catch { /* still cold-starting — keep polling */ }
-        // Wait before next poll (bail early if destroyed)
+            const res = await fetch(`${httpUrl}/`, {
+                method: "GET",
+                cache: "no-store",
+                credentials: "omit",    // compatible with allow_origins=*
+                signal,
+            });
+            if (res.ok) return true;    // 200 — server is alive
+            // 404/5xx from Render's proxy means server not yet up — keep polling
+        } catch { /* network error / server still cold-starting */ }
         await new Promise<void>((resolve) => {
             const t = setTimeout(resolve, WAKE_POLL_MS);
             signal.addEventListener("abort", () => { clearTimeout(t); resolve(); }, { once: true });
         });
     }
+    return false;
 }
 
 function useWebSocket(roomId: string, onMessage: (data: DrawEvent) => void) {
@@ -467,6 +470,17 @@ function useWebSocket(roomId: string, onMessage: (data: DrawEvent) => void) {
         const httpBase = process.env.NEXT_PUBLIC_API_URL ||
             wsBase.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
 
+        async function connectWithWake() {
+            if (abortCtrl.signal.aborted) return;
+            setWsStatus("connecting");
+            const alive = await waitForBackend(httpBase, abortCtrl.signal);
+            if (!alive || abortCtrl.signal.aborted) {
+                setWsStatus("disconnected");
+                return;
+            }
+            openSocket();
+        }
+
         function openSocket() {
             if (abortCtrl.signal.aborted) return;
             const ws = new WebSocket(`${wsBase}/ws/${roomId}`);
@@ -482,10 +496,10 @@ function useWebSocket(roomId: string, onMessage: (data: DrawEvent) => void) {
                 if (e.code === 4000) { setWsStatus("full"); return; }
                 if (abortCtrl.signal.aborted) return;
                 if (retryCount.current < WS_MAX_RETRIES) {
-                    const delay = WS_BASE_DELAY_MS * Math.pow(1.5, retryCount.current);
                     retryCount.current += 1;
                     setWsStatus("disconnected");
-                    retryTimer.current = setTimeout(openSocket, delay);
+                    // Re-check server health before each retry (handles server restart)
+                    retryTimer.current = setTimeout(connectWithWake, WS_BASE_DELAY_MS);
                 } else {
                     setWsStatus("disconnected");
                 }
@@ -497,11 +511,8 @@ function useWebSocket(roomId: string, onMessage: (data: DrawEvent) => void) {
             };
         }
 
-        // Wake the dyno via HTTP first, then open the WebSocket
-        setWsStatus("connecting");
-        waitForBackend(httpBase, abortCtrl.signal).then(() => {
-            if (!abortCtrl.signal.aborted) openSocket();
-        });
+        // Initial connect: wake the dyno first, then open the WebSocket
+        connectWithWake();
 
         return () => {
             abortCtrl.abort();
