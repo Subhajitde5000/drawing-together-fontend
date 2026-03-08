@@ -576,6 +576,7 @@ export default function RoomPage() {
     const roomId = params?.roomId ?? "unknown";
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const ctxRef = useRef<CanvasRenderingContext2D | null>(null);
     const canvasWrapperRef = useRef<HTMLDivElement>(null);
     const isDrawingRef = useRef(false);
     const lastPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -617,7 +618,7 @@ export default function RoomPage() {
     function saveHistory() {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
         const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
         // Truncate any redo future
@@ -634,7 +635,7 @@ export default function RoomPage() {
         historyIndexRef.current -= 1;
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
         ctx.putImageData(historyRef.current[historyIndexRef.current], 0, 0);
         setCanUndo(historyIndexRef.current > 0);
@@ -646,7 +647,7 @@ export default function RoomPage() {
         historyIndexRef.current += 1;
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
         ctx.putImageData(historyRef.current[historyIndexRef.current], 0, 0);
         setCanUndo(true);
@@ -656,8 +657,10 @@ export default function RoomPage() {
     useEffect(() => {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        // Create context once with willReadFrequently so getImageData is fast
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
         if (!ctx) return;
+        ctxRef.current = ctx;
         fillWhite(ctx, canvas);
         // Save blank canvas as step 0 so undo always has a base
         const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -697,7 +700,7 @@ export default function RoomPage() {
         // ── Canvas drawing events ──
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
 
         if (data.type === "draw" && data.fromX !== undefined) {
@@ -763,7 +766,7 @@ export default function RoomPage() {
         if (!isDrawingRef.current) return;
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
 
         const pos = getCanvasCoords(e, canvas);
@@ -811,7 +814,7 @@ export default function RoomPage() {
     function handleCanvasClick(e: React.MouseEvent) {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
         const pos = getCanvasCoords(e, canvas);
 
@@ -835,7 +838,7 @@ export default function RoomPage() {
     function clearCanvas() {
         const canvas = canvasRef.current;
         if (!canvas) return;
-        const ctx = canvas.getContext("2d");
+        const ctx = ctxRef.current;
         if (!ctx) return;
         saveHistory();
         fillWhite(ctx, canvas);
