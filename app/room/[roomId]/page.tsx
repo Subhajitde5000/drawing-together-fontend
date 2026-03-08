@@ -427,30 +427,50 @@ const WAKE_TIMEOUT_MS = 90_000;
 const WAKE_POLL_MS = 5_000;
 
 /**
- * Poll GET /  until it returns HTTP 200 (server is awake) or the signal is
- * aborted. Returns true if the server is ready, false on timeout/abort.
- * Uses a plain fetch with credentials omitted so CORS works with allow_origins=*.
+ * Wake the Render dyno, then confirm it's alive.
+ *
+ * 1. Fire a no-cors "wake" request (avoids CORS console errors while the
+ *    dyno is still asleep — Render's 404 proxy page has no CORS headers).
+ * 2. Once the no-cors request succeeds (server TCP is up), switch to a
+ *    normal CORS fetch to verify we get a real 200 with CORS headers.
  */
 async function waitForBackend(httpUrl: string, signal: AbortSignal): Promise<boolean> {
     const deadline = Date.now() + WAKE_TIMEOUT_MS;
+
+    // Phase 1 — fire no-cors pings to wake the dyno without CORS errors
+    while (Date.now() < deadline) {
+        if (signal.aborted) return false;
+        try {
+            await fetch(`${httpUrl}/`, { method: "HEAD", mode: "no-cors", cache: "no-store", signal });
+            // Opaque response — dyno *might* be up. Move to phase 2.
+            break;
+        } catch { /* dyno not reachable yet */ }
+        await sleep(WAKE_POLL_MS, signal);
+    }
+
+    // Phase 2 — confirm with a normal CORS fetch (checks 200 + headers)
     while (Date.now() < deadline) {
         if (signal.aborted) return false;
         try {
             const res = await fetch(`${httpUrl}/`, {
                 method: "GET",
                 cache: "no-store",
-                credentials: "omit",    // compatible with allow_origins=*
+                credentials: "omit",
                 signal,
             });
-            if (res.ok) return true;    // 200 — server is alive
-            // 404/5xx from Render's proxy means server not yet up — keep polling
-        } catch { /* network error / server still cold-starting */ }
-        await new Promise<void>((resolve) => {
-            const t = setTimeout(resolve, WAKE_POLL_MS);
-            signal.addEventListener("abort", () => { clearTimeout(t); resolve(); }, { once: true });
-        });
+            if (res.ok) return true;
+        } catch { /* CORS error = proxy 404, server still booting */ }
+        await sleep(WAKE_POLL_MS, signal);
     }
     return false;
+}
+
+/** Cancellable sleep helper */
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+    return new Promise((resolve) => {
+        const t = setTimeout(resolve, ms);
+        signal.addEventListener("abort", () => { clearTimeout(t); resolve(); }, { once: true });
+    });
 }
 
 function useWebSocket(roomId: string, onMessage: (data: DrawEvent) => void) {
