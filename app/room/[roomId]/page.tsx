@@ -427,17 +427,21 @@ const WAKE_TIMEOUT_MS = 90_000;
 const WAKE_POLL_MS = 4_000;
 
 /**
- * Ping the HTTP health endpoint until it responds with 200 (wakes Render's
- * free-tier dyno) then resolve. Rejects after WAKE_TIMEOUT_MS.
+ * Ping the HTTP health endpoint to wake Render's free-tier dyno.
+ * Uses mode:no-cors so CORS headers on the backend are irrelevant for this
+ * fire-and-forget wake request. Resolves as soon as the server responds
+ * (any status) or after WAKE_TIMEOUT_MS.
  */
 async function waitForBackend(httpUrl: string, signal: AbortSignal): Promise<void> {
     const deadline = Date.now() + WAKE_TIMEOUT_MS;
     while (Date.now() < deadline) {
         if (signal.aborted) return;
         try {
-            const res = await fetch(`${httpUrl}/`, { signal, method: "GET", cache: "no-store" });
-            if (res.ok) return;
-        } catch { /* still waking — keep polling */ }
+            // no-cors: opaque response — we can't read status, but if fetch
+            // doesn't throw the server is alive and accepting connections.
+            await fetch(`${httpUrl}/`, { signal, method: "GET", mode: "no-cors", cache: "no-store" });
+            return; // server responded — wake complete
+        } catch { /* still cold-starting — keep polling */ }
         // Wait before next poll (bail early if destroyed)
         await new Promise<void>((resolve) => {
             const t = setTimeout(resolve, WAKE_POLL_MS);
