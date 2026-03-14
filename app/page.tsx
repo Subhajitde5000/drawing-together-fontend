@@ -2,8 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
+import Link from "next/link";
 
 // ─────────────────────────────────────────────────────────────────────────────
+
 // Helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -41,20 +43,18 @@ function ModeCard({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       style={{
-        background: "white",
-        border: hovered ? `2px solid ${accent}` : "2px solid #e2e8f0",
-        borderRadius: "1.5rem",
+        background: hovered ? `${accent}0d` : "#fffff5",
+        border: hovered ? `3px solid ${accent}` : "3px solid #1a1a1a",
+        borderRadius: "8px 18px 12px 22px / 18px 8px 22px 12px",
         padding: "2.25rem 2rem",
         display: "flex",
         flexDirection: "column",
         gap: "1rem",
         flex: "1 1 280px",
         minWidth: 0,
-        transition: "all 0.25s ease",
-        transform: hovered ? "translateY(-6px)" : "none",
-        boxShadow: hovered
-          ? `0 20px 45px rgba(0,0,0,0.10), 0 0 0 4px ${accent}22`
-          : "0 4px 20px rgba(0,0,0,0.06)",
+        transition: "all 0.15s ease",
+        transform: hovered ? "translateY(-6px) rotate(-1deg)" : "rotate(0.4deg)",
+        boxShadow: hovered ? `6px 6px 0 ${accent}` : "5px 5px 0 #1a1a1a",
         position: "relative",
         overflow: "hidden",
       }}
@@ -88,10 +88,10 @@ function ModeCard({
       {/* Title */}
       <h3
         style={{
-          fontFamily: "var(--font-nunito), Nunito, sans-serif",
-          fontWeight: 900,
-          fontSize: "1.25rem",
-          color: "#0f172a",
+          fontFamily: "var(--font-nunito), Caveat, cursive",
+          fontWeight: 700,
+          fontSize: "1.3rem",
+          color: "#1a1a1a",
         }}
       >
         {title}
@@ -100,8 +100,8 @@ function ModeCard({
       {/* Description */}
       <p
         style={{
-          color: "#64748b",
-          fontSize: "0.95rem",
+          color: "#525252",
+          fontSize: "0.98rem",
           lineHeight: 1.65,
           flex: 1,
         }}
@@ -115,11 +115,12 @@ function ModeCard({
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
-          background: `${accent}18`,
+          background: `${accent}15`,
           color: accent,
-          borderRadius: 9999,
+          border: `2px solid ${accent}`,
+          borderRadius: "4px 10px 6px 12px / 10px 4px 12px 6px",
           padding: "4px 14px",
-          fontSize: "0.8rem",
+          fontSize: "0.88rem",
           fontWeight: 700,
           alignSelf: "flex-start",
         }}
@@ -135,31 +136,31 @@ function ModeCard({
         style={{
           background: accent,
           color: "white",
-          fontFamily: "var(--font-nunito), Nunito, sans-serif",
-          fontWeight: 800,
+          fontFamily: "var(--font-nunito), Caveat, cursive",
+          fontWeight: 700,
           fontSize: "1rem",
           padding: "0.85rem 1.5rem",
-          borderRadius: 9999,
-          border: "none",
+          borderRadius: "255px 15px 225px 15px / 15px 225px 15px 255px",
+          border: "3px solid #1a1a1a",
           cursor: loading ? "not-allowed" : "pointer",
-          transition: "all 0.2s ease",
+          transition: "all 0.15s ease",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           gap: 8,
-          boxShadow: `0 4px 16px ${accent}55`,
+          boxShadow: "3px 3px 0 #1a1a1a",
           opacity: loading ? 0.7 : 1,
         }}
         onMouseEnter={(e) => {
           if (!loading) {
             (e.currentTarget as HTMLButtonElement).style.transform =
-              "scale(1.04)";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 8px 28px ${accent}88`;
+              "translateY(-2px) rotate(-1deg)";
+            (e.currentTarget as HTMLButtonElement).style.boxShadow = "5px 5px 0 #1a1a1a";
           }
         }}
         onMouseLeave={(e) => {
           (e.currentTarget as HTMLButtonElement).style.transform = "none";
-          (e.currentTarget as HTMLButtonElement).style.boxShadow = `0 4px 16px ${accent}55`;
+          (e.currentTarget as HTMLButtonElement).style.boxShadow = "3px 3px 0 #1a1a1a";
         }}
       >
         {loading ? (
@@ -203,9 +204,9 @@ function StepCard({
   return (
     <div
       style={{
-        background: "white",
-        border: "1.5px solid #e2e8f0",
-        borderRadius: "1.25rem",
+        background: "#fffff5",
+        border: "3px solid #1a1a1a",
+        borderRadius: "8px 16px 12px 20px / 16px 8px 20px 12px",
         padding: "1.75rem 1.5rem",
         textAlign: "center",
         flex: "1 1 200px",
@@ -213,49 +214,50 @@ function StepCard({
         flexDirection: "column",
         alignItems: "center",
         gap: "0.75rem",
-        transition: "all 0.25s ease",
-        boxShadow: "0 2px 12px rgba(0,0,0,0.04)",
+        transition: "all 0.15s ease",
+        boxShadow: "5px 5px 0 #1a1a1a",
+        transform: "rotate(-0.5deg)",
       }}
       onMouseEnter={(e) => {
-        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
-        (e.currentTarget as HTMLDivElement).style.boxShadow =
-          "0 12px 32px rgba(99,102,241,0.1)";
-        (e.currentTarget as HTMLDivElement).style.borderColor = "#a5b4fc";
+        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-5px) rotate(-1.5deg)";
+        (e.currentTarget as HTMLDivElement).style.boxShadow = "7px 7px 0 #4338ca";
+        (e.currentTarget as HTMLDivElement).style.borderColor = "#4338ca";
       }}
       onMouseLeave={(e) => {
-        (e.currentTarget as HTMLDivElement).style.transform = "none";
-        (e.currentTarget as HTMLDivElement).style.boxShadow =
-          "0 2px 12px rgba(0,0,0,0.04)";
-        (e.currentTarget as HTMLDivElement).style.borderColor = "#e2e8f0";
+        (e.currentTarget as HTMLDivElement).style.transform = "rotate(-0.5deg)";
+        (e.currentTarget as HTMLDivElement).style.boxShadow = "5px 5px 0 #1a1a1a";
+        (e.currentTarget as HTMLDivElement).style.borderColor = "#1a1a1a";
       }}
     >
       <div style={{ fontSize: "2.2rem" }}>{icon}</div>
       <div
         style={{
-          background: "linear-gradient(135deg, #ede9fe, #d1fae5)",
-          color: "#6366f1",
-          fontWeight: 800,
-          fontSize: "0.75rem",
-          letterSpacing: 1.5,
-          borderRadius: 9999,
+          background: "#fef08a",
+          color: "#1a1a1a",
+          fontWeight: 700,
+          fontSize: "0.85rem",
+          letterSpacing: 1,
+          border: "2px solid #1a1a1a",
+          borderRadius: "4px 8px 6px 10px / 8px 4px 10px 6px",
           padding: "3px 14px",
           textTransform: "uppercase",
-          fontFamily: "var(--font-nunito), Nunito, sans-serif",
+          fontFamily: "var(--font-nunito), Caveat, cursive",
+          boxShadow: "2px 2px 0 #1a1a1a",
         }}
       >
         Step {num}
       </div>
       <h3
         style={{
-          fontFamily: "var(--font-nunito), Nunito, sans-serif",
-          fontWeight: 800,
-          fontSize: "1.05rem",
-          color: "#0f172a",
+          fontFamily: "var(--font-nunito), Caveat, cursive",
+          fontWeight: 700,
+          fontSize: "1.1rem",
+          color: "#1a1a1a",
         }}
       >
         {title}
       </h3>
-      <p style={{ color: "#64748b", fontSize: "0.9rem", lineHeight: 1.6 }}>
+      <p style={{ color: "#525252", fontSize: "0.95rem", lineHeight: 1.6 }}>
         {desc}
       </p>
     </div>
@@ -272,6 +274,7 @@ export default function Home() {
   const [guessLoading, setGuessLoading] = useState(false);
   const [roomCode, setRoomCode] = useState("");
   const [joinError, setJoinError] = useState("");
+  const [showMoreFun, setShowMoreFun] = useState(false);
   const gameModesRef = useRef<HTMLElement>(null);
 
   const handleScrollToModes = () => {
@@ -304,7 +307,7 @@ export default function Home() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f8fafc" }}>
+    <div style={{ minHeight: "100vh", background: "#fffef0", backgroundImage: "linear-gradient(rgba(99,102,241,0.07) 1.5px, transparent 1.5px), linear-gradient(90deg, rgba(99,102,241,0.07) 1.5px, transparent 1.5px)", backgroundSize: "32px 32px" }}>
       {/* ═══════════════════════════════════════════════════════════════
           HEADER
       ═══════════════════════════════════════════════════════════════ */}
@@ -314,10 +317,9 @@ export default function Home() {
           position: "sticky",
           top: 0,
           zIndex: 50,
-          backdropFilter: "blur(14px)",
-          WebkitBackdropFilter: "blur(14px)",
-          background: "rgba(248, 250, 252, 0.92)",
-          borderBottom: "1px solid rgba(226, 232, 240, 0.8)",
+          background: "rgba(255,254,240,0.97)",
+          borderBottom: "3px solid #1a1a1a",
+          boxShadow: "0 3px 0 0 #1a1a1a",
         }}
       >
         <div
@@ -335,10 +337,10 @@ export default function Home() {
             <span style={{ fontSize: "1.6rem" }}>🎨</span>
             <span
               style={{
-                fontFamily: "var(--font-nunito), Nunito, sans-serif",
+                fontFamily: "var(--font-nunito), Caveat, cursive",
                 fontWeight: 900,
                 fontSize: "1.3rem",
-                background: "linear-gradient(135deg, #6366f1, #22c55e)",
+                background: "linear-gradient(135deg, #4338ca, #16a34a)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
               }}
@@ -361,8 +363,8 @@ export default function Home() {
             }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLAnchorElement).style.background =
-                "#ede9fe";
-              (e.currentTarget as HTMLAnchorElement).style.color = "#6366f1";
+                "#fef08a";
+              (e.currentTarget as HTMLAnchorElement).style.color = "#1a1a1a";
             }}
             onMouseLeave={(e) => {
               (e.currentTarget as HTMLAnchorElement).style.background =
@@ -397,13 +399,15 @@ export default function Home() {
             display: "inline-flex",
             alignItems: "center",
             gap: 7,
-            background: "linear-gradient(135deg, #ede9fe, #d1fae5)",
-            borderRadius: 9999,
+            background: "#fef08a",
+            border: "2.5px solid #1a1a1a",
+            borderRadius: "6px 14px 8px 16px / 14px 6px 16px 8px",
             padding: "6px 18px",
-            fontSize: "0.82rem",
+            fontSize: "0.9rem",
             fontWeight: 700,
-            color: "#4f46e5",
+            color: "#1a1a1a",
             opacity: 0,
+            boxShadow: "3px 3px 0 #1a1a1a",
           }}
         >
           <span
@@ -424,16 +428,34 @@ export default function Home() {
         <h1
           className="animate-fade-in-up delay-100"
           style={{
-            fontFamily: "var(--font-nunito), Nunito, sans-serif",
+            fontFamily: "var(--font-nunito), Caveat, cursive",
             fontWeight: 900,
             fontSize: "clamp(2.4rem, 6vw, 3.8rem)",
             lineHeight: 1.15,
-            color: "#0f172a",
+            color: "#1a1a1a",
             opacity: 0,
           }}
         >
           🎨 DrawTogether
         </h1>
+
+        {/* Doodle underline */}
+        <svg
+          className="animate-fade-in-up delay-150"
+          style={{ opacity: 0, marginTop: "-0.5rem" }}
+          width="260" height="16" viewBox="0 0 260 16"
+        >
+          <path
+            d="M3,12 C38,4 75,14 112,8 C149,2 196,15 257,7"
+            stroke="#6366f1" strokeWidth="3.5" fill="none"
+            strokeLinecap="round"
+            style={{
+              strokeDasharray: 280,
+              strokeDashoffset: 280,
+              animation: "draw-line 1.1s 0.6s ease forwards",
+            }}
+          />
+        </svg>
 
         {/* Subtitle */}
         <p
@@ -489,13 +511,13 @@ export default function Home() {
                 alignItems: "center",
                 gap: 6,
                 background: "white",
-                border: "1.5px solid #e2e8f0",
-                borderRadius: 9999,
+                border: "2.5px solid #1a1a1a",
+                borderRadius: "4px 10px 6px 12px / 10px 4px 12px 6px",
                 padding: "0.45rem 1.1rem",
-                fontSize: "0.85rem",
-                fontWeight: 600,
-                color: "#334155",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                fontSize: "0.9rem",
+                fontWeight: 700,
+                color: "#1a1a1a",
+                boxShadow: "2px 2px 0 #1a1a1a",
               }}
             >
               {icon} {label}
@@ -511,8 +533,10 @@ export default function Home() {
         id="game-modes"
         ref={gameModesRef}
         style={{
-          background: "linear-gradient(180deg, #f8fafc 0%, #f0f4ff 100%)",
+          background: "#fffce8",
           padding: "4rem 1.5rem 5rem",
+          borderTop: "3px solid #1a1a1a",
+          borderBottom: "3px solid #1a1a1a",
         }}
       >
         <div style={{ maxWidth: 1000, margin: "0 auto" }}>
@@ -528,7 +552,7 @@ export default function Home() {
               textTransform: "uppercase",
               marginBottom: "0.4rem",
               opacity: 0,
-              fontFamily: "var(--font-nunito), Nunito, sans-serif",
+              fontFamily: "var(--font-nunito), Caveat, cursive",
             }}
           >
             Pick your style
@@ -576,6 +600,38 @@ export default function Home() {
               loading={guessLoading}
             />
           </div>
+
+          <div style={{ marginTop: "4rem", display: "flex", justifyContent: "center" }}>
+            <button
+              onClick={() => setShowMoreFun(true)}
+              style={{
+                background: "linear-gradient(135deg, #f43f5e, #ec4899)",
+                color: "white",
+                fontFamily: "var(--font-nunito), Caveat, cursive",
+                fontWeight: 800,
+                fontSize: "1.2rem",
+                padding: "1rem 2.5rem",
+                borderRadius: "255px 15px 225px 15px / 15px 225px 15px 255px",
+                border: "3px solid #1a1a1a",
+                cursor: "pointer",
+                transition: "all 0.15s ease",
+                boxShadow: "4px 4px 0 #1a1a1a",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px) rotate(-2deg)";
+                e.currentTarget.style.boxShadow = "6px 6px 0 #1a1a1a";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow = "4px 4px 0 #1a1a1a";
+              }}
+            >
+              🎉 More Fun Games
+            </button>
+          </div>
         </div>
       </section>
 
@@ -585,7 +641,7 @@ export default function Home() {
       <section
         id="how-it-works"
         className="section"
-        style={{ background: "white" }}
+        style={{ background: "#f0f9ff" }}
       >
         <div style={{ maxWidth: 960, margin: "0 auto" }}>
           <p
@@ -599,7 +655,7 @@ export default function Home() {
               textTransform: "uppercase",
               marginBottom: "0.4rem",
               opacity: 0,
-              fontFamily: "var(--font-nunito), Nunito, sans-serif",
+              fontFamily: "var(--font-nunito), Caveat, cursive",
             }}
           >
             Simple by design
@@ -652,16 +708,18 @@ export default function Home() {
       ═══════════════════════════════════════════════════════════════ */}
       <section
         style={{
-          background: "linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #7c3aed 100%)",
+          background: "#312e81",
           padding: "4.5rem 1.5rem",
           textAlign: "center",
+          borderTop: "4px solid #1a1a1a",
+          borderBottom: "4px solid #1a1a1a",
         }}
       >
         <div style={{ maxWidth: 520, margin: "0 auto" }}>
           <h2
             className="animate-fade-in-up"
             style={{
-              fontFamily: "var(--font-nunito), Nunito, sans-serif",
+              fontFamily: "var(--font-nunito), Caveat, cursive",
               fontWeight: 900,
               fontSize: "clamp(1.6rem, 4vw, 2.2rem)",
               color: "white",
@@ -708,20 +766,20 @@ export default function Home() {
                 width: "100%",
                 maxWidth: 360,
                 padding: "0.95rem 1.4rem",
-                borderRadius: 9999,
+                borderRadius: "6px 14px 8px 16px / 14px 6px 16px 8px",
                 border: joinError
-                  ? "2px solid #fca5a5"
-                  : "2px solid rgba(255,255,255,0.3)",
-                background: "rgba(255,255,255,0.12)",
+                  ? "3px solid #fca5a5"
+                  : "3px solid rgba(255,255,255,0.7)",
+                background: "rgba(255,255,255,0.1)",
                 color: "white",
-                fontSize: "1.05rem",
+                fontSize: "1.1rem",
                 fontWeight: 700,
-                fontFamily: "var(--font-nunito), Nunito, sans-serif",
+                fontFamily: "var(--font-nunito), Caveat, cursive",
                 letterSpacing: 2,
                 outline: "none",
                 textAlign: "center",
-                backdropFilter: "blur(8px)",
                 transition: "border-color 0.2s ease",
+                boxShadow: "3px 3px 0 rgba(255,255,255,0.15)",
               }}
               onFocus={(e) => {
                 (e.currentTarget as HTMLInputElement).style.borderColor =
@@ -754,30 +812,30 @@ export default function Home() {
               onClick={handleJoinRoom}
               style={{
                 background: "white",
-                color: "#6366f1",
-                fontFamily: "var(--font-nunito), Nunito, sans-serif",
-                fontWeight: 900,
-                fontSize: "1.05rem",
+                color: "#312e81",
+                fontFamily: "var(--font-nunito), Caveat, cursive",
+                fontWeight: 700,
+                fontSize: "1.1rem",
                 padding: "0.95rem 2.5rem",
-                borderRadius: 9999,
-                border: "none",
+                borderRadius: "255px 15px 225px 15px / 15px 225px 15px 255px",
+                border: "3px solid #1a1a1a",
                 cursor: "pointer",
-                transition: "all 0.2s ease",
-                boxShadow: "0 6px 24px rgba(0,0,0,0.18)",
+                transition: "all 0.15s ease",
+                boxShadow: "4px 4px 0 #1a1a1a",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
               }}
               onMouseEnter={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.transform =
-                  "translateY(-3px) scale(1.04)";
+                  "translateY(-3px) rotate(-1deg)";
                 (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                  "0 12px 36px rgba(0,0,0,0.28)";
+                  "6px 6px 0 #1a1a1a";
               }}
               onMouseLeave={(e) => {
                 (e.currentTarget as HTMLButtonElement).style.transform = "none";
                 (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                  "0 6px 24px rgba(0,0,0,0.18)";
+                  "4px 4px 0 #1a1a1a";
               }}
             >
               🚀 Join Room
@@ -791,10 +849,11 @@ export default function Home() {
       ═══════════════════════════════════════════════════════════════ */}
       <footer
         style={{
-          background: "#0f172a",
-          color: "#94a3b8",
+          background: "#1a1a1a",
+          color: "#d4d4d4",
           textAlign: "center",
           padding: "2.25rem 1.5rem",
+          borderTop: "4px solid #333",
         }}
       >
         <div
@@ -811,10 +870,10 @@ export default function Home() {
             <span style={{ fontSize: "1.3rem" }}>🎨</span>
             <span
               style={{
-                fontFamily: "var(--font-nunito), Nunito, sans-serif",
+                fontFamily: "var(--font-nunito), Caveat, cursive",
                 fontWeight: 900,
                 fontSize: "1.05rem",
-                background: "linear-gradient(135deg, #a5b4fc, #6ee7b7)",
+                background: "linear-gradient(135deg, #818cf8, #4ade80)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
               }}
@@ -822,14 +881,105 @@ export default function Home() {
               DrawTogether
             </span>
           </div>
-          <p style={{ fontSize: "0.85rem", color: "#64748b" }}>
+          <p style={{ fontSize: "1rem", color: "#a3a3a3" }}>
             A simple multiplayer drawing game. 🖌️ No login needed.
           </p>
-          <p style={{ fontSize: "0.78rem", color: "#475569" }}>
+          <p style={{ fontSize: "0.9rem", color: "#737373" }}>
             © 2026 DrawTogether
           </p>
         </div>
       </footer>
+
+      {/* More Fun Modal */}
+      {showMoreFun && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.6)",
+          backdropFilter: "blur(4px)",
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "1rem"
+        }}>
+          <div className="animate-fade-in-up" style={{
+            background: "#fff",
+            border: "4px solid #1a1a1a",
+            borderRadius: "16px",
+            padding: "2.5rem 2rem",
+            maxWidth: 420,
+            width: "100%",
+            textAlign: "center",
+            boxShadow: "10px 10px 0 rgba(0,0,0,0.3)",
+            position: "relative"
+          }}>
+            <button 
+              onClick={() => setShowMoreFun(false)}
+              style={{
+                position: "absolute",
+                top: 15,
+                right: 20,
+                background: "none",
+                border: "none",
+                fontSize: "1.5rem",
+                cursor: "pointer",
+                color: "#666",
+                padding: "4px",
+              }}
+            >
+              ✕
+            </button>
+            <h2 style={{
+              fontFamily: "var(--font-nunito), Caveat, cursive",
+              fontSize: "2.2rem",
+              fontWeight: 900,
+              color: "#1a1a1a",
+              marginBottom: "0.5rem"
+            }}>
+              More Games! 🎮
+            </h2>
+            <p style={{ color: "#525252", marginBottom: "2rem", lineHeight: 1.6, fontSize: "1.05rem" }}>
+              Try our brand new stealth action game mode! Hide, escape, and outsmart your friends.
+            </p>
+            <Link href="/police-thieves">
+              <button style={{
+                background: "#0f172a",
+                color: "#fbbf24",
+                fontFamily: "var(--font-nunito), Caveat, cursive",
+                fontWeight: 800,
+                fontSize: "1.3rem",
+                padding: "1.2rem 2rem",
+                borderRadius: "12px",
+                border: "4px solid #1a1a1a",
+                cursor: "pointer",
+                width: "100%",
+                transition: "transform 0.15s ease, box-shadow 0.15s ease",
+                boxShadow: "4px 4px 0 #1a1a1a",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: "8px"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "translateY(-4px)";
+                e.currentTarget.style.boxShadow = "6px 6px 0 #1a1a1a";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "none";
+                e.currentTarget.style.boxShadow = "4px 4px 0 #1a1a1a";
+              }}
+              onClick={() => setShowMoreFun(false)}
+              >
+                🚓 Play Police vs Thieves 🕵️
+              </button>
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
