@@ -25,6 +25,7 @@ export default function PoliceThievesLobby() {
   // Name-entry gate: show prompt if coming via invite link with no stored name
   const [nameInput, setNameInput] = useState("");
   const [nameConfirmed, setNameConfirmed] = useState(false);
+  const [settings, setSettings] = useState<{ hide_time: number; round_time: number; total_rounds: number; current_round: number } | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem("police-thieves-player-name");
@@ -68,6 +69,7 @@ export default function PoliceThievesLobby() {
         if (msg.type === "state") {
           setPlayers(msg.players ?? []);
           if (msg.host_id) setHostId(msg.host_id);
+          if (msg.settings) setSettings(msg.settings);
           // If room is ended and we're back in lobby, host auto-sends restart
           // so _next_police_id (Rule 6) is computed on the server
           if (msg.phase === "ended") {
@@ -232,6 +234,30 @@ export default function PoliceThievesLobby() {
             </ul>
           </div>
 
+          {/* Room Settings (read-only for all players) */}
+          {settings && (
+            <div className="mb-6 rounded-2xl border-2 border-blue-100 bg-blue-50/60 p-4 text-sm">
+              <p className="text-xs font-black uppercase tracking-widest text-blue-500 mb-3">Room Settings</p>
+              <div className="grid grid-cols-3 gap-3 text-center">
+                <div className="bg-white rounded-xl p-3 shadow-sm border border-blue-100">
+                  <div className="text-2xl mb-1">🕵️</div>
+                  <div className="font-black text-blue-600 text-lg">{settings.hide_time}s</div>
+                  <div className="text-slate-500 text-xs font-semibold">Hide Time</div>
+                </div>
+                <div className="bg-white rounded-xl p-3 shadow-sm border border-blue-100">
+                  <div className="text-2xl mb-1">🚓</div>
+                  <div className="font-black text-blue-600 text-lg">{settings.round_time === 0 ? "∞" : `${settings.round_time}s`}</div>
+                  <div className="text-slate-500 text-xs font-semibold">Hunt Time</div>
+                </div>
+                <div className="bg-white rounded-xl p-3 shadow-sm border border-blue-100">
+                  <div className="text-2xl mb-1">🔄</div>
+                  <div className="font-black text-blue-600 text-lg">{settings.total_rounds}</div>
+                  <div className="text-slate-500 text-xs font-semibold">Round{settings.total_rounds > 1 ? "s" : ""}</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Action */}
           <div className="flex flex-col gap-3 mt-4">
             {startError && (
@@ -253,7 +279,7 @@ export default function PoliceThievesLobby() {
           </h3>
           <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 text-slate-600 text-sm font-medium leading-relaxed shadow-inner">
             <p className="mb-2"><span className="text-blue-600 font-bold">1 Police</span> vs <span className="text-red-500 font-bold">{Math.max(1, connectedCount - 1)} Thieves</span></p>
-            <p className="mb-2">Thieves get <span className="font-bold">30 seconds</span> to hide before the police can move.</p>
+            <p className="mb-2">Thieves get <span className="font-bold">{settings?.hide_time ?? 30} seconds</span> to hide before the police can move.</p>
             <p>Thieves can catch the police to win!</p>
           </div>
         </div>

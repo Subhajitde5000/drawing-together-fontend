@@ -577,6 +577,19 @@ export default function ThreeGame({ role, phase, myAlive = true, otherPlayers, o
     );
     visorM.position.set(0, 2.77, 0.33); pg.add(visorM);
 
+    // Dark hair patch on BACK of head (makes it clear which side is back)
+    const hairM = new THREE.Mesh(
+      new THREE.SphereGeometry(0.33, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.6),
+      new THREE.MeshStandardMaterial({ color: 0x2d1a0a, roughness: 0.9 })
+    );
+    hairM.position.set(0, 2.5, 0); hairM.rotation.x = Math.PI; pg.add(hairM);
+    // Bright back stripe on body (yellow/white) — visible from behind
+    const backStripeM = new THREE.Mesh(
+      new THREE.BoxGeometry(0.22, 0.55, 0.06),
+      new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.4 })
+    );
+    backStripeM.position.set(0, 1.4, -0.45); pg.add(backStripeM);
+
     // Badge
     const badgeM = new THREE.Mesh(new THREE.BoxGeometry(0.25, 0.18, 0.05), new THREE.MeshStandardMaterial({ color: 0xfbbf24, metalness: 0.9, roughness: 0.1 }));
     badgeM.position.set(0, 1.55, 0.44); pg.add(badgeM);
@@ -894,6 +907,18 @@ export default function ThreeGame({ role, phase, myAlive = true, otherPlayers, o
           // Hat visor sticking out front (+Z)
           const visor2 = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.06, 0.30), accentMat);
           visor2.position.set(0, 2.77, 0.33); opMesh.add(visor2);
+          // Dark hair patch on BACK of head
+          const hair2 = new THREE.Mesh(
+            new THREE.SphereGeometry(0.33, 8, 6, 0, Math.PI * 2, 0, Math.PI * 0.6),
+            new THREE.MeshStandardMaterial({ color: 0x2d1a0a, roughness: 0.9 })
+          );
+          hair2.position.set(0, 2.5, 0); hair2.rotation.x = Math.PI; opMesh.add(hair2);
+          // Bright back stripe (yellow) — visible from behind
+          const backStripe2 = new THREE.Mesh(
+            new THREE.BoxGeometry(0.22, 0.55, 0.06),
+            new THREE.MeshStandardMaterial({ color: 0xfbbf24, roughness: 0.4 })
+          );
+          backStripe2.position.set(0, 1.4, -0.45); opMesh.add(backStripe2);
           scene.add(opMesh);
           otherMeshesRef.current.set(op.id, opMesh);
         }

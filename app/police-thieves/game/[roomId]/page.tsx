@@ -17,9 +17,23 @@ interface OtherPlayer {
   alive: boolean;
 }
 
-interface GameOver {
-  winner: string;   // "police" | "thieves"
+interface ScoreEntry { id: string; name: string; score: number; }
+
+interface RoundOver {
+  winner: string;
   reason: string;
+  round: number;
+  total_rounds: number;
+  scores: ScoreEntry[];
+  more_rounds: boolean;
+  next_in: number;
+}
+
+interface GameOver {
+  winner: string;
+  reason: string;
+  final: boolean;
+  scores: ScoreEntry[];
 }
 
 interface RemoteHint {
@@ -45,7 +59,12 @@ export default function PoliceThievesGame() {
   const [myAlive, setMyAlive]         = useState(true);
   const [phase, setPhase]             = useState("lobby");
   const [timeLeft, setTimeLeft]       = useState(120);
+  const [noLimitMode, setNoLimitMode] = useState(false);
+  const [currentRound, setCurrentRound] = useState(1);
+  const [totalRounds, setTotalRounds]   = useState(1);
   const [otherPlayers, setOtherPlayers] = useState<OtherPlayer[]>([]);
+  const [roundOver, setRoundOver]     = useState<RoundOver | null>(null);
+  const [nextRoundIn, setNextRoundIn] = useState(0);
   const [gameOver, setGameOver]       = useState<GameOver | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [connected, setConnected]     = useState(false);
@@ -113,6 +132,9 @@ export default function PoliceThievesGame() {
           const newPhase = msg.phase;
           setPhase(newPhase);
           setTimeLeft(msg.time_left ?? 120);
+          if (msg.settings?.round_time === 0) setNoLimitMode(true);
+          if (msg.settings?.current_round) setCurrentRound(msg.settings.current_round);
+          if (msg.settings?.total_rounds)  setTotalRounds(msg.settings.total_rounds);
           // Find my role from players list
           const me = (msg.players ?? []).find((p: {id: string}) => p.id === myPlayerIdRef.current);
           if (me?.role) setMyRole(me.role as "police" | "thief");
@@ -157,8 +179,23 @@ export default function PoliceThievesGame() {
           setPhase(msg.phase);
         }
 
+        else if (msg.type === "round_over") {
+          setRoundOver(msg as RoundOver);
+          setNextRoundIn(msg.next_in);
+          setPhase("ended");
+        }
+
+        else if (msg.type === "next_round_countdown") {
+          setNextRoundIn(msg.seconds);
+          // When countdown hits 0 the server auto-starts next round; clear overlay
+          if (msg.seconds === 0) {
+            setRoundOver(null);
+            setMyAlive(true);
+          }
+        }
+
         else if (msg.type === "game_over") {
-          setGameOver({ winner: msg.winner, reason: msg.reason });
+          setGameOver({ winner: msg.winner, reason: msg.reason, final: msg.final ?? true, scores: msg.scores ?? [] });
           setPhase("ended");
         }
 
@@ -211,11 +248,11 @@ export default function PoliceThievesGame() {
     return () => document.removeEventListener("fullscreenchange", onChange);
   }, []);
 
-  // Auto-redirect to lobby when game ends — countdown from 5
+  // Auto-redirect to lobby only after the FINAL game over (all rounds done)
   useEffect(() => {
     if (!gameOver) return;
-    setRedirectCount(5);
-    let count = 5;
+    setRedirectCount(8);
+    let count = 8;
     const interval = setInterval(() => {
       count -= 1;
       setRedirectCount(count);
@@ -268,6 +305,12 @@ export default function PoliceThievesGame() {
                 {myRole === "thief" ? "🏃 Hide!" : "🙈 Eyes Closed"}
               </span>
             )}
+            {/* Round indicator (only show if multi-round) */}
+            {totalRounds > 1 && (
+              <span className="bg-indigo-50 border border-indigo-200 text-indigo-600 px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider hidden sm:inline-block">
+                R{currentRound}/{totalRounds}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2 sm:gap-4 mx-2">
@@ -285,8 +328,8 @@ export default function PoliceThievesGame() {
 
           <div className="flex items-center gap-3">
             <span className="text-sm uppercase tracking-widest text-slate-400 font-bold hidden sm:inline-block">Time:</span>
-            <span className={`border font-mono text-xl font-bold px-4 py-1.5 rounded-lg shadow-sm flex items-center gap-2 ${timeLeft < 10 ? 'bg-red-50 border-red-200 text-red-600' : 'bg-amber-50 border-amber-200 text-amber-600'}`}>
-              ⏱ {formatTime(timeLeft)}
+            <span className={`border font-mono text-xl font-bold px-4 py-1.5 rounded-lg shadow-sm flex items-center gap-2 ${!noLimitMode && phase === "active" && timeLeft < 10 ? 'bg-red-50 border-red-200 text-red-600' : 'bg-amber-50 border-amber-200 text-amber-600'}`}>
+              {phase === "active" && noLimitMode ? "⏱ ∞" : `⏱ ${formatTime(timeLeft)}`}
             </span>
             <button onClick={toggleFullscreen} className="ml-2 w-10 h-10 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-lg border border-slate-200 transition-colors shadow-sm" title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}>
               <span className="text-lg">{isFullscreen ? "⛌" : "⛶"}</span>
@@ -342,24 +385,90 @@ export default function PoliceThievesGame() {
           </div>
         )}
 
-        {/* Game-over overlay — auto-redirects to lobby */}
+        {/* Round-over scoreboard — shown between rounds, auto-clears when next round starts */}
+        {roundOver && !gameOver && (
+          <div className="absolute inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-auto overflow-hidden">
+              {/* Header */}
+              <div className={`px-8 pt-8 pb-5 text-center ${roundOver.winner === "police" ? "bg-blue-500" : "bg-red-500"}`}>
+                <div className="text-5xl mb-2">{roundOver.winner === "police" ? "🚓" : "🕵️"}</div>
+                <h2 className="text-2xl font-black text-white">{roundOver.winner === "police" ? "Police Win!" : "Thieves Win!"}</h2>
+                <p className="text-white/80 text-sm font-semibold mt-1">
+                  Round {roundOver.round} / {roundOver.total_rounds} ·{" "}
+                  {roundOver.reason === "all_caught" ? "All thieves caught" :
+                   roundOver.reason === "police_caught" ? "Police caught!" : "Time ran out"}
+                </p>
+              </div>
+              {/* Scores */}
+              <div className="px-6 py-4">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Scoreboard</p>
+                <ul className="space-y-2">
+                  {roundOver.scores.map((s, i) => (
+                    <li key={s.id} className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-2.5 border border-slate-100">
+                      <span className="flex items-center gap-2 font-bold text-slate-700">
+                        <span className="text-slate-400 font-mono text-sm w-5">{i + 1}.</span>
+                        {i === 0 && <span>🥇</span>}
+                        {i === 1 && <span>🥈</span>}
+                        {i === 2 && <span>🥉</span>}
+                        {s.name}
+                      </span>
+                      <span className="font-black text-indigo-600 text-lg">{s.score} <span className="text-xs font-semibold text-slate-400">pts</span></span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {/* Next round countdown */}
+              <div className="px-6 pb-6 text-center">
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl py-3 px-4">
+                  <p className="text-amber-700 font-black text-lg">
+                    Next round in <span className="text-3xl">{nextRoundIn}</span>s…
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Final game-over scoreboard — shown after all rounds */}
         {gameOver && (
-          <div className="absolute inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center">
-            <div className="bg-white rounded-3xl p-10 shadow-2xl text-center max-w-sm w-full mx-4">
-              <div className="text-6xl mb-4">{gameOver.winner === "police" ? "🚓" : "🕵️"}</div>
-              <h2 className="text-3xl font-black mb-2">{gameOver.winner === "police" ? "Police Win!" : "Thieves Win!"}</h2>
-              <p className="text-slate-500 font-semibold mb-6 capitalize">
-                {gameOver.reason === "all_caught" ? "All thieves were caught!" :
-                 gameOver.reason === "police_caught" ? "The police were caught!" :
-                 "Time ran out!"}
-              </p>
-              <p className="text-slate-400 text-sm mb-4">Returning to lobby in <span className="font-black text-slate-700">{redirectCount}</span>s…</p>
-              <Link
-                href={`/police-thieves/lobby/${normalizedRoomId}`}
-                className="block w-full py-3 bg-yellow-400 hover:bg-yellow-300 text-yellow-950 font-black rounded-2xl transition-colors text-center"
-              >
-                Go to Lobby Now
-              </Link>
+          <div className="absolute inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm mx-auto overflow-hidden">
+              {/* Header */}
+              <div className={`px-8 pt-8 pb-5 text-center ${gameOver.winner === "police" ? "bg-blue-500" : "bg-red-500"}`}>
+                <div className="text-5xl mb-2">{gameOver.winner === "police" ? "🚓" : "🕵️"}</div>
+                <h2 className="text-2xl font-black text-white">{gameOver.winner === "police" ? "Police Win!" : "Thieves Win!"}</h2>
+                <p className="text-white/80 text-sm font-semibold mt-1 capitalize">
+                  {gameOver.reason === "all_caught" ? "All thieves caught" :
+                   gameOver.reason === "police_caught" ? "Police caught!" : "Time ran out"}
+                </p>
+              </div>
+              {/* Final scores */}
+              <div className="px-6 py-4">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-3">Final Scoreboard</p>
+                <ul className="space-y-2">
+                  {gameOver.scores.map((s, i) => (
+                    <li key={s.id} className={`flex items-center justify-between rounded-xl px-4 py-2.5 border ${i === 0 ? "bg-yellow-50 border-yellow-200" : "bg-slate-50 border-slate-100"}`}>
+                      <span className="flex items-center gap-2 font-bold text-slate-700">
+                        <span className="text-slate-400 font-mono text-sm w-5">{i + 1}.</span>
+                        {i === 0 && <span>🏆</span>}
+                        {i === 1 && <span>🥈</span>}
+                        {i === 2 && <span>🥉</span>}
+                        {s.name}
+                      </span>
+                      <span className="font-black text-indigo-600 text-lg">{s.score} <span className="text-xs font-semibold text-slate-400">pts</span></span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="px-6 pb-6 text-center">
+                <p className="text-slate-400 text-sm mb-3">Back to lobby in <span className="font-black text-slate-700">{redirectCount}</span>s…</p>
+                <Link
+                  href={`/police-thieves/lobby/${normalizedRoomId}`}
+                  className="block w-full py-3 bg-yellow-400 hover:bg-yellow-300 text-yellow-950 font-black rounded-2xl transition-colors text-center"
+                >
+                  Go to Lobby Now
+                </Link>
+              </div>
             </div>
           </div>
         )}
